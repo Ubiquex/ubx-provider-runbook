@@ -167,25 +167,40 @@ running this by hand has no equivalent instruction anywhere else in
 this runbook, and hits a real, confusing failure without it.
 
 `ubx sdk gen --only $ARGUMENTS --lang go/py/ts --out <dir>` against the
-now-pinned schema does NOT produce a complete, publishable repo by
-itself -- confirmed live, DigitalOcean's own real onboarding, every
-item below is a real gap that either broke a build or broke the first
-`publish.yml` dispatch:
+now-pinned schema does NOT, by itself, produce a complete, publishable
+repo -- confirmed live, DigitalOcean's own real onboarding, twice (a
+first missing `deno.json` broke a real `deno check`, a first missing
+`build-npm.mjs` broke a real `publish.yml` dispatch with
+`MODULE_NOT_FOUND`) before this was fixed at the tool level rather
+than left as a checklist a future session could miss the same way:
 
-- **`ubx sdk gen`'s own output**: the three language SDKs themselves,
-  plus `sdk/typescript/package.json`/`deno.json` as placeholder stubs
-  carrying version `0.0.0`.
-- **Not produced, hand-copy from an existing `ubx-sdk-<provider>`
-  repo before the first commit**: `CLAUDE.md`, `README.md`, `STATE.md`,
-  `HISTORY.md`, `LICENSE`, `.github/workflows/hash-watch.yml`,
-  `.github/workflows/publish.yml`, and
-  `.github/scripts/build-npm.mjs` (fully generic, byte-identical
-  across every existing provider repo -- confirmed live via `diff`
-  before copying -- derives everything from `deno.json`, no
-  per-provider edits needed). A first `publish.yml` dispatch against a
-  repo missing this last file fails outright with `MODULE_NOT_FOUND`.
-- **A brand new Go module has no committed `go.sum`** -- run a real
-  `go mod tidy` before the first `go build`/`go vet`, or both fail.
+- **`ubx sdk gen`'s own output**: the three language SDKs, plus
+  `sdk/go/go.mod`, `sdk/typescript/package.json`, and
+  `sdk/python/pyproject.toml` as placeholder stubs carrying version
+  `0.0.0`. `sdk/typescript/deno.json` is now ALSO real, per-provider
+  generated output (its own "exports" map, derived from the same file
+  tree as everything else) -- no longer a hand-copied file, this was
+  the first of the two real DigitalOcean gaps.
+- **`ubx sdk init-repo --out <dir>/$ARGUMENTS --short-name $ARGUMENTS
+  --provider-display "<Display Name>" --source-note "<one real,
+  honest sentence>"`, run once, right after the `--lang go/py/ts`
+  calls above.** Writes everything else a new repo needs and `ubx sdk
+  gen` still doesn't produce: `LICENSE`, `.github/scripts/build-npm.mjs`,
+  `.github/workflows/publish.yml`, `CLAUDE.md`, `README.md`, `STATE.md`,
+  `HISTORY.md`, and a real `sdk/go/go.sum` via an actual `go mod tidy`
+  subprocess run. Never overwrites a file that already exists (safe to
+  re-run). `--source-note` is the one real judgment call this command
+  can't make for you -- one honest sentence on this provider's own
+  schema source and format (e.g. `"OpenAPI-sourced via
+  \`ubx-provider-dynamic\`"`; Datadog's own real v1/v2 API merge is the
+  confirmed example of a provider needing something more specific than
+  the generic default).
+- **`.github/workflows/hash-watch.yml` is the one file this command
+  deliberately does NOT write** -- it needs real, provider-specific
+  content (which upstream URL to poll, how to hash it) that differs
+  genuinely per provider, not mechanical substitution. Author it by
+  hand, using an existing provider repo's own copy as a structural
+  reference, not a copy-paste source.
 - **A real, deliberate first version, chosen before the first PR, not
   left at `0.0.0`.** Every one of the six pre-existing providers
   inherited its own starting version from a prior Terraform-provider
@@ -206,12 +221,13 @@ item below is a real gap that either broke a build or broke the first
   can create and add them. The first `publish.yml` dispatch against a
   repo missing these fails with a real `ENEEDAUTH` (a genuine auth
   failure, distinct from `MODULE_NOT_FOUND` above) -- confirm this
-  step actually happened before dispatching, since nothing else in
-  this runbook currently names it as required. If it fails with
-  `ENEEDAUTH` even after the secrets are added, check whether they were
-  added as ORG-level secrets with a repository access list that
-  doesn't include this new repo yet -- confirmed real precedent,
-  `ubx-sdk-typescript`'s own earlier onboarding hit exactly this.
+  step actually happened before dispatching, since `ubx sdk init-repo`
+  cannot do this part; it needs a real credential only a human has. If
+  it fails with `ENEEDAUTH` even after the secrets are added, check
+  whether they were added as ORG-level secrets with a repository
+  access list that doesn't include this new repo yet -- confirmed real
+  precedent, `ubx-sdk-typescript`'s own earlier onboarding hit exactly
+  this.
 
 Create `ubx-sdk-$ARGUMENTS` (public), commit the generated bindings
 plus every item above, push, open a PR. Once merged, dispatch that
