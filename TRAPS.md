@@ -209,3 +209,20 @@ character. If a runbook step's own output is meant to be consumed by
 another step or another session, verify the literal contract (parse it
 the same way the real consumer will), not just that the output looks
 right.
+
+**This exact bug recurred for real in `regen_all.py`**, the actual
+orchestrator this whole `/regen-docs` chain runs -- its own final JSON
+report shared stdout with regen_pages.py's/gen_all_data_source_pages.py's
+own uncaptured narration, and CI's own "Build the step summary" step
+broke on it twice, both times on a real, successful DigitalOcean
+regeneration, reporting the whole run as a red failure. A red workflow
+that is actually fine, twice, is exactly what trains everyone to stop
+looking at it -- the same real problem the golden-page-gate had before
+its own known failure mode was fixed. The durable fix was not "keep
+stdout pure by discipline" (the same discipline that already failed
+once for `stage_gap_free.py`) but moving the report off stdout
+entirely -- a real, required `--json-out` file path, decoupled from
+whatever any current or future line in the chain prints. Prefer this
+shape (an explicit output file, never an implicit stream) for any new
+script in this chain whose output another step or session needs to
+parse.
