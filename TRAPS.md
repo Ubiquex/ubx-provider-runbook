@@ -76,6 +76,21 @@ once in this project). Query the exact version directly
 release, `go list -m <module>@v<version>`), not `@latest`, and not the
 workflow's own exit status.
 
+**npm's own bare package-document endpoint
+(`registry.npmjs.org/<pkg>`, no version) can 404 with a real, genuine
+`{"error":"Not found"}` for a package that is, at the exact same
+moment, fully live and correctly resolvable at its specific-version
+endpoint (`registry.npmjs.org/<pkg>/<version>`) and its `dist-tags`
+endpoint.** Confirmed live on `ubx-sdk-digitalocean`'s own first real
+publish: the bare package document 404'd on repeated queries minutes
+apart, while `.../1.0.0` returned the full real manifest (real
+`shasum`, real signed provenance, real tarball URL) and `.../dist-tags`
+correctly showed `{"latest":"1.0.0"}` the whole time. This is a real
+reason on top of the propagation-lag one above to always query the
+specific version (or `dist-tags`), never the bare package document --
+the bare document is a different, apparently less reliably-cached
+resource, and its 404 is not evidence the publish failed.
+
 ## Build from current source, not whatever binary is in the path
 
 A stale `ubx` on `PATH` produces a result that looks identical to a
