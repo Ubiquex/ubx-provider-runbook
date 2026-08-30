@@ -21,13 +21,29 @@ Every real `ubx-schema-<provider>` repo carries its own `hash-watch.yml`
 `ubx-provider-dynamic` from its own latest real, tagged release and runs
 `--generate-snapshot-group` against `$ARGUMENTS`'s own real, current
 upstream. If the regenerated content differs from what's committed, it
-opens a PR itself -- never merges. Check `gh pr list --label <whatever
-hash-watch tags its own PRs, confirm from the workflow file>` for an
-already-open one before triggering anything by hand
+opens a PR itself -- never merges, and never labeled (checked directly
+against the real workflow file -- its own `gh pr create` call carries no
+`--label`). Check `gh pr list --state open` for a branch named
+`snapshot-regen/$ARGUMENTS-<version>` before triggering anything by hand
 (`gh workflow run hash-watch.yml`).
 
 Mark `trigger` `done` noting whether this run was `hash-watch`'s own PR
 or a manual `workflow_dispatch`, with the PR URL either way.
+
+**A version bump alone does not mean the schema itself changed.**
+Confirmed live: dispatching this against Kubernetes with its own real
+upstream spec unchanged for days still opened a real PR, version 3.0.1
+-> 3.0.2, both real members individually logged `own change level: none`.
+The only line that changed was `manifest.json`'s own `min_binary_version`
+-- `ubx-provider-dynamic` had itself published a new release
+(1.0.1 -> 1.0.2) between the two runs, and every snapshot this tool
+builds stamps its own current version into that field regardless of
+whether the schema content moved at all (confirmed against that
+release's own real GitHub release notes). This is real, intentional,
+documented behavior, not a bug -- but it means "hash-watch opened a PR"
+is not by itself evidence the upstream schema drifted. Hop 1 below
+(read the real diff) is what actually answers that question; do not
+skip it because a PR exists.
 
 ## Hop 1: review the real diff, not the PR's own summary
 
@@ -42,10 +58,15 @@ service, real service-directory renames, field-level changes alongside
 an unrelated fix -- `ubiquex` `STATE.md`, UBI-201's own entry).
 
 If the diff is larger than expected for what triggered this regen,
-report the real scope before merging -- do not assume it's noise.
+report the real scope before merging -- do not assume it's noise. If
+the diff is ONLY `manifest.json`'s own `min_binary_version` field with
+no `members/*.json` change at all, that's the real no-op case above --
+still worth merging (the stamped version should reflect what actually
+built it), but report it as exactly that, not as a schema update.
 
 Mark `done` with the real diff scope (member count changed, resource
-count delta) once reviewed.
+count delta, or "toolchain version only, zero schema content change")
+once reviewed.
 
 ## Hop 2: merge, cut the release
 
