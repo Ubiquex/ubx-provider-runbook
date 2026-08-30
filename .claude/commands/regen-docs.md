@@ -21,6 +21,36 @@ on every invocation to `/tmp/regen-scratch/$ARGUMENTS_regen_result.json`
 and `$ARGUMENTS_datasource_regen_result.json` -- read it after running,
 don't look for a committed one from a prior session.
 
+## First time running this against a given provider: check the allowlists first
+
+If `write-artifacts` has already run clean for `$ARGUMENTS` (this
+runbook's own "Done" condition), that does NOT mean `regen-docs` has
+ever actually run against it -- these are two separate hops with two
+separate sets of hardcoded provider dicts, and the first one clearing
+does not clear the second. Before running Hop 3 for a provider that has
+never been through this runbook before, confirm `$ARGUMENTS` is a real
+key in all of:
+
+- `gen_all_data_source_pages.py`'s `PROVIDERS`
+- `regen_all.py`'s `RESOURCE_REGEN_PROVIDERS` and `ALL_PROVIDERS`
+- `regen_pages.py`'s `PROVIDER_DISPLAY`, `SDK_REPO_ID`,
+  `SKIP_INJECTION_SOURCE`, and the second, local `sdk_repo_id` dict
+  inside `main()` that duplicates the module-level one
+- `corpus_index.py`'s `PROVIDER_TAB_NAMES`
+
+and that `docs.json` already carries a nav group for
+`RESOURCE_REGEN_PROVIDERS[$ARGUMENTS]`'s own display name under the
+"SDK Reference" tab (`provider_group`/`rebuild_provider_nav` reconcile
+an existing group against the real file tree, they never create one --
+a brand new provider needs a minimal
+`{"group": "<Display Name>", "root": "resource-reference/<provider>/index",
+"pages": []}` entry added by hand first).
+
+None of this is specific to any one provider -- it is what any
+genuinely new provider hits the first time it reaches this hop. See
+`../TRAPS.md#a-hardcoded-provider-allowlist-is-invisible-until-a-genuinely-new-provider-arrives`
+for the real DigitalOcean incident this section exists because of.
+
 ## Hop 1: confirm this needs to run at all
 
 `resource-reference-regen.yml` already runs on push to `main` touching

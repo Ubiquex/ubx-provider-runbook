@@ -131,6 +131,57 @@ language, verify against the real remote directly (`git fetch` and
 -- a repo's own state files describe intent at the time they were
 written, not necessarily what actually landed.
 
+## A hardcoded provider allowlist is invisible until a genuinely new provider arrives
+
+Six of the six existing providers this whole chain has ever run against
+were added to `ubiquex-docs`'s own generator scripts one at a time, over
+a long history, each addition folded quietly into whatever dict already
+existed. Nothing about that history ever forced anyone to notice the
+dicts themselves are a hardcoded enumeration, not derived from anything
+live -- every one of the six providers was always already there by the
+time any of these scripts were read or run, so the gap had no occasion
+to surface.
+
+DigitalOcean, the seventh, hit it repeatedly, in two separate hops:
+
+`write-artifacts`: `coverage_check.py`'s own `DUMP_DIR` dict failed
+outright with "unknown provider" before anything could even be
+recomputed -- the hop's own core command, unusable until fixed.
+
+`regen-docs`: five more, each a real crash or a real silent skip --
+`gen_all_data_source_pages.py`'s `PROVIDERS` (`KeyError`),
+`regen_all.py`'s `RESOURCE_REGEN_PROVIDERS`/`ALL_PROVIDERS` (would have
+silently produced data-source pages only, never real resource pages --
+this is the gate deciding whether `regen_pages.py` even runs, so the
+failure is silent, not a crash), `regen_pages.py`'s
+`PROVIDER_DISPLAY`/`SDK_REPO_ID`/`SKIP_INJECTION_SOURCE` plus a second,
+local `sdk_repo_id` dict duplicating the module-level one, and
+`corpus_index.py`'s `PROVIDER_TAB_NAMES` (`KeyError` in
+`provider_group`). See `ubiquex-docs` PR #61 for the real fix, and
+`ubiquex` `STATE.md`'s own UBI-222 entry for the full account.
+
+A close relative, same root cause, different shape: `docs.json` itself
+carried no "DigitalOcean" nav group at all, and `provider_group`/
+`rebuild_provider_nav` have no create-if-missing path by design (they
+reconcile an already-existing group against the real file tree, never
+invent one) -- every provider this mechanism had ever run against
+before already had its own group from an earlier, separate bootstrap
+nobody had to think about since it predated the mechanism itself.
+
+None of this is DigitalOcean-specific. It is what happens to any
+genuinely new provider run through any of these scripts for the first
+time -- **before touching `write-artifacts` or `regen-docs` for a
+provider that has never been through either hop before**, grep each
+script above for its own dict literal and confirm the new provider's
+key is actually present; do not assume a script "supports all
+providers" just because it has no per-provider `if` branches -- an
+enumerated dict with no such branch fails exactly as hard as one that
+has them, just later and less legibly (a `KeyError` deep in a call
+stack, or worse, a silent partial run with the wrong pages simply never
+generated). Same for `docs.json`'s own nav groups: confirm the
+provider's own group already exists before assuming `regen-docs` will
+create it.
+
 ## A script's stdout looking right to a human is not the same as its being parseable
 
 A script whose own doc comment promises a specific machine-readable
