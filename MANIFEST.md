@@ -1,4 +1,4 @@
-# MANIFEST.md — the resume mechanism
+# MANIFEST.md -- the resume mechanism
 
 Every runbook writes a small JSON manifest, one file per target
 (provider name, or provider+schema-version for regen), recording which

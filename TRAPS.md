@@ -1,4 +1,4 @@
-# TRAPS.md — failures that will happen again if skipped
+# TRAPS.md -- failures that will happen again if skipped
 
 Every trap below caused a real, confirmed failure in this project, most
 of them more than once. They are listed here once and linked from the
