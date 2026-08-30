@@ -16,6 +16,17 @@ gate `regen-docs` refuses to ship past -- read it directly
 rather than assuming its scope. It checks exactly three things per wire,
 never more:
 
+For a provider that has never run through this hop before, confirm
+`$ARGUMENTS` is a real key in `coverage_check.py`'s own `DUMP_DIR`
+first -- this is the FIRST of several hardcoded provider allowlists a
+genuinely new provider hits across this whole chain; DigitalOcean's own
+core command here failed outright with "unknown provider" until it was
+added. See
+`../TRAPS.md#a-hardcoded-provider-allowlist-is-invisible-until-a-genuinely-new-provider-arrives`
+-- `regen-docs` has five more of these waiting downstream, plus a
+`docs.json` nav-group bootstrap gap, none of which this hop's own clean
+run clears.
+
 1. **An intro** -- one real paragraph, `artifacts/$ARGUMENTS/intros.json`.
 2. **A category** -- a service-level label, either an explicit override
    in `artifacts/$ARGUMENTS/categories.json` or a valid default
