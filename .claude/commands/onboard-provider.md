@@ -92,6 +92,26 @@ This hop is not done until a real `ubx sdk gen --dump-ir` run against
 counts, source-vs-inferred description coverage. Record those real
 numbers in the manifest, not an estimate.
 
+**Before moving on, look at the real service/namespace grouping this
+run produced, not just the resource count.** A provider whose own wire
+names don't cleanly split into `<provider>_<service>_<noun>` will
+mechanically fragment into near-meaningless single-resource "services"
+that nothing downstream catches automatically -- DigitalOcean's own
+real example: nearly all 59 resources landed in their own
+single-resource service (`load`, `floating`, `reserved`, `db`,
+`database`, `cluster`, `pool`, `replica`, `config`...) instead of its
+real product taxonomy, discovered only by a human actually reading the
+coverage report's own resource list during `write-artifacts`, several
+hops later than it should have been. Check this now: does the spec
+carry genuine, human-authored operation tags or an equivalent grouping
+signal (`internal/snapshot`'s own `namespace_from_tags` config flag
+reads exactly this for OpenAPI sources, opt-in per provider, gated so
+it never risks regressing an already-correct provider) that the
+mechanical wire-name split is missing? If the grouping already looks
+wrong here, fixing it now is far cheaper than fixing it after
+artifact-authoring has already been batched against the wrong
+services.
+
 ## Hop 4: create and push the schema repo
 
 `ubx sdk gen --only $ARGUMENTS --dump-ir <dir>` output is what a
@@ -124,18 +144,78 @@ having succeeded.
 
 Once hop 4's push has genuinely landed (verified per above): cut a real
 GitHub Release (`v1.0.0`, matching the committed snapshot), then switch
-`ubiquex`'s own `[dynamic_providers.$ARGUMENTS]` entry to
-`[providers.$ARGUMENTS]` with `source`/`version` pointing at the real
-release -- never both a live entry and a pin for the same provider at
-once. A real PR, verified merged by reading the config file's own
-content after, not the merged flag.
+`ubiquex`'s own `[dynamic_providers.$ARGUMENTS]` entry from its live
+shape (`schema_source`/`schema_url`, plus any provider-specific flag
+hop 3 needed, e.g. `redocly_bundle`) to its pinned shape (`source`/
+`version` pointing at the real release) -- **within that SAME table,
+never a separate `[providers.$ARGUMENTS]` table.** The real, current
+config only ever carries one `[dynamic_providers.<name>]` entry per
+provider; a bare `[providers.<name>]` table is a genuinely different,
+newer mechanism (`cli/config.go`'s own `Providers` field, for the `ubx
+resolve`/`ship` execution path) that `ubx sdk gen` never reads at all.
+This section previously said otherwise and cost a real session real
+time tracing the mismatch before the config file's own comment (already
+correct) settled it -- see DigitalOcean's own onboarding manifest,
+`release-cut-and-pin` hop. Real PR, verified merged by reading the
+config file's own content after, not the merged flag.
 
 ## Hop 6: generate and publish SDK bindings
 
+Set `UBX_PROVIDER_DYNAMIC_REPO` locally before running `ubx sdk gen`
+against a dynamic provider -- CI sets this via `env:`, but a session
+running this by hand has no equivalent instruction anywhere else in
+this runbook, and hits a real, confusing failure without it.
+
 `ubx sdk gen --only $ARGUMENTS --lang go/py/ts --out <dir>` against the
-now-pinned schema. Create `ubx-sdk-$ARGUMENTS` (public), commit the
-generated bindings, push, open a PR. Once merged, dispatch that repo's
-own `publish.yml`.
+now-pinned schema does NOT produce a complete, publishable repo by
+itself -- confirmed live, DigitalOcean's own real onboarding, every
+item below is a real gap that either broke a build or broke the first
+`publish.yml` dispatch:
+
+- **`ubx sdk gen`'s own output**: the three language SDKs themselves,
+  plus `sdk/typescript/package.json`/`deno.json` as placeholder stubs
+  carrying version `0.0.0`.
+- **Not produced, hand-copy from an existing `ubx-sdk-<provider>`
+  repo before the first commit**: `CLAUDE.md`, `README.md`, `STATE.md`,
+  `HISTORY.md`, `LICENSE`, `.github/workflows/hash-watch.yml`,
+  `.github/workflows/publish.yml`, and
+  `.github/scripts/build-npm.mjs` (fully generic, byte-identical
+  across every existing provider repo -- confirmed live via `diff`
+  before copying -- derives everything from `deno.json`, no
+  per-provider edits needed). A first `publish.yml` dispatch against a
+  repo missing this last file fails outright with `MODULE_NOT_FOUND`.
+- **A brand new Go module has no committed `go.sum`** -- run a real
+  `go mod tidy` before the first `go build`/`go vet`, or both fail.
+- **A real, deliberate first version, chosen before the first PR, not
+  left at `0.0.0`.** Every one of the six pre-existing providers
+  inherited its own starting version from a prior Terraform-provider
+  migration (kubernetes started at `0.2.0`, not `0.0.0` or `1.0.0`) --
+  that is real history specific to those repos, not a convention to
+  copy. A genuinely from-scratch provider has no such history; match
+  the schema pin's own real starting version (`1.0.0` for
+  DigitalOcean) as the deliberate choice, and bump
+  `sdk/python/pyproject.toml`, `sdk/typescript/deno.json`, and
+  `sdk/typescript/package.json` together (Go needs no file bump --
+  `publish.yml`'s own design publishes it via a pushed tag).
+- **`NPM_TOKEN` and `PYPI_TOKEN` as real, dedicated repo secrets**
+  (Settings -> Secrets and variables -> Actions), scoped to this one
+  new repo -- `publish.yml`'s own doc comment already says these are
+  "dedicated CI tokens, scoped to this repo/package," never shared or
+  inherited from another repo. A brand new provider genuinely needs
+  its own newly-created tokens; only the real npm/PyPI account owner
+  can create and add them. The first `publish.yml` dispatch against a
+  repo missing these fails with a real `ENEEDAUTH` (a genuine auth
+  failure, distinct from `MODULE_NOT_FOUND` above) -- confirm this
+  step actually happened before dispatching, since nothing else in
+  this runbook currently names it as required. If it fails with
+  `ENEEDAUTH` even after the secrets are added, check whether they were
+  added as ORG-level secrets with a repository access list that
+  doesn't include this new repo yet -- confirmed real precedent,
+  `ubx-sdk-typescript`'s own earlier onboarding hit exactly this.
+
+Create `ubx-sdk-$ARGUMENTS` (public), commit the generated bindings
+plus every item above, push, open a PR. Once merged, dispatch that
+repo's own `publish.yml`.
 
 **Verify the publish by querying each registry for the specific
 version** -- npm, PyPI, the Go module proxy, each queried for the exact

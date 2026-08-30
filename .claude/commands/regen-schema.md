@@ -83,9 +83,13 @@ proxy).
 
 ## Hop 3: bump the pin in ubiquex
 
-`sdk/providers/.ubx/config`'s own `[providers.$ARGUMENTS]` entry,
-`version` bumped to the new release. Real PR (`ubiquex` is direct-push
-by convention, but every hop in this chain still opens one). Verify
+`sdk/providers/.ubx/config`'s own `[dynamic_providers.$ARGUMENTS]`
+entry (never a separate `[providers.$ARGUMENTS]` table -- that is a
+genuinely different, newer mechanism `ubx sdk gen` never reads; see
+`onboard-provider.md`'s own hop 5 for the real incident this note
+comes from), `version` bumped to the new release. Real PR (`ubiquex` is
+direct-push by convention, but every hop in this chain still opens
+one). Verify
 `ubx sdk gen --only $ARGUMENTS --dump-ir <dir>` resolves the new pin
 cleanly (zero-network on a cache hit is expected; confirm it's actually
 reading the new version, not a stale local cache, by checking the
