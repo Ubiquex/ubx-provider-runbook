@@ -88,6 +88,7 @@ python3 scripts/resource-reference-gen/regen_all.py \
   --dump-root <dump-dir> \
   --local-sdk-root <local-sdk-root> \
   --docs-root <ubiquex-docs checkout> \
+  --json-out /tmp/regen-scratch/regen_all_report_$ARGUMENTS.json \
   --only $ARGUMENTS
 ```
 
@@ -101,10 +102,16 @@ real regeneration meant to ship, since it would silently reintroduce
 the exact templated-page/blank-field failure UBI-216's own artifact
 mandate exists to prevent.
 
-Read the script's own stdout report -- per-wire coverage results, pages
-kept, pages excluded and why. If it reports gaps: that's real, expected
-output naming exactly which wires still need `/write-artifacts`, not a
-tooling failure.
+`--json-out` is required -- UBI-222: the real, structured report used
+to print to stdout, sharing that stream with this run's own real
+per-provider narration (still on stdout, unchanged), which broke the
+first real caller that tried to parse stdout as JSON. Read the
+narration on stdout for the human-facing account -- per-wire coverage
+results, pages kept, pages excluded and why. If it reports gaps:
+that's real, expected output naming exactly which wires still need
+`/write-artifacts`, not a tooling failure. The file at `--json-out` is
+the same real report CI's own `report_regen_summary.py` consumes, only
+needed here if you want the structured form.
 
 ## Hop 4: verify, then open a PR
 
@@ -124,7 +131,17 @@ chain.
 `stage_gap_free.py` (part of this same chain) once promised pure JSON
 on its own stdout while a function it called printed real log lines
 onto that same stream first -- looked correct to a human, broke the
-first time an actual caller parsed it as JSON. If you're modifying any
-part of this chain rather than just running it, verify the literal
-output contract, not just that it looks right --
+first time an actual caller parsed it as JSON. `regen_all.py` had the
+identical bug for real, live months later (its own final report shared
+stdout with regen_pages.py's/gen_all_data_source_pages.py's own
+uncaptured narration) -- confirmed by CI reporting a real, successful
+DigitalOcean regeneration as a failed run twice, training a red
+workflow to be ignored, exactly the failure mode UBI-137's own design
+already warned about. Fixed by moving the report off stdout entirely
+(`--json-out`, a real, required file path, never inferred) rather than
+trying to keep stdout pure by discipline alone -- the more durable fix,
+since it does not depend on every future line anyone adds to this
+chain remembering not to print. If you're modifying any part of this
+chain rather than just running it, verify the literal output contract,
+not just that it looks right --
 `../TRAPS.md#a-scripts-stdout-looking-right-to-a-human-is-not-the-same-as-its-being-parseable`.
