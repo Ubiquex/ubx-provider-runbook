@@ -8,7 +8,7 @@ provider, as Claude Code slash commands (`.claude/commands/`, invoked
 This repo carries the procedure -- real commands, real verification,
 real traps. `ubiquex-internals` carries the explanation of why the
 process is shaped this way (`ubiquex-internals`'s own [Provider
-Runbooks](https://ubiquex.mintlify.app/provider-runbooks) page).
+Runbooks](https://ubiquex-internals.mintlify.app/provider-runbooks) page).
 
 ## Why this exists
 
