@@ -226,3 +226,33 @@ whatever any current or future line in the chain prints. Prefer this
 shape (an explicit output file, never an implicit stream) for any new
 script in this chain whose output another step or session needs to
 parse.
+
+## A required check with zero possible runs blocks a PR forever, and looks like a real failure
+
+Branch protection required a `stale-base-check` status context on six
+real repos whose own workflow file producing that check did not exist
+yet -- a real, permanent block, not a slow CI run or a flaky one. From
+outside the repo, a PR sitting unmergeable with an empty check list is
+indistinguishable from a real failure until the branch protection
+rules and the actual workflow files are checked directly against each
+other. Confirmed the fix works before assuming it: a newly-added
+required-check workflow can pass on the very PR that adds it (GitHub
+evaluates a `pull_request`-triggered workflow using the file as it
+exists on the PR's own head), and a branch whose own commits predate
+that workflow landing on the base needs one more push (a rebase or a
+merge-in of the base) before its own check can run at all -- not a new
+file, just a fresh commit.
+
+Also found here: "never self-merge" is not one rule with no
+exceptions. It draws a real, closed line between a PR with content to
+judge (schema changes, generated output, description or page content,
+anything that changes what ships) and a PR that is purely mechanical
+(an identical file copied verbatim across repos, a rebase or merge-in
+with no new content, a version bump with no content change). Before
+this line was written down explicitly, seventeen real, correctly
+prepared, passing-checks PRs across nine repos sat unmerged waiting
+for a human simply because nothing distinguished them from the PRs
+that genuinely needed review. The line has to be written so checking
+it is mechanical too -- if a diff has anything outside the closed list,
+even one line, it needs review as a whole; if it is unclear which
+category a PR falls into, it needs review.
