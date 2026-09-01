@@ -1,0 +1,29 @@
+name: ci
+
+# Pure markdown, no code at all -- there is no meaningful "go build"
+# or "go test" here. The real, non-trivial check for a runbook repo
+# is that its own real cross-references and external links actually
+# resolve: a renamed heading anchor, a typo'd relative path, or a
+# dead external URL all fail this for real, not a check that always
+# passes.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  link-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Check every real link in every real markdown file
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --no-progress "*.md"
+          fail: true
