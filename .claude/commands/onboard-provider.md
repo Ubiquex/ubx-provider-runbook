@@ -38,12 +38,23 @@ spec and it produced real resource/data-source counts, not until the
 spec merely fetched.
 
 If `$ARGUMENTS` is one of several unconfirmed candidates, the survey
-method already used for 17 real candidates is `sdk/providers/docs/candidate-provider-survey.md`
-in `ubiquex` -- fetch the real spec, run the real
+method already used for 17 real candidates is `docs/candidate-provider-survey.md`
+in `ubiquex` (not `sdk/providers/docs/` -- confirmed live, UBI-222:
+the path this section named did not exist) -- fetch the real spec, run
+the real
 `internal/resourcemap.Discover`/`DiscoverDataSources` against it, record
 real counts. A spec existing with no fetchable URL, or generated from a
 private spec never published for external fetch, is a real "no" --
 confirmed per-candidate, not assumed from a repo's README alone.
+
+**Build the scratch tool inside `ubx-provider-dynamic`'s own module
+tree** (a temp package under `cmd/`, deleted after this hop), not as a
+separate module with a `replace` directive pointed at a local checkout
+-- confirmed live, UBI-222: Go's own internal-package visibility rule
+blocks `internal/openapi`/`internal/resourcemap` from any importer
+outside that module's real root, and a `replace` directive does not
+change the importing module's own path prefix, so the separate-module
+shape fails to build outright before ever reaching a real spec.
 
 Mark this hop `done` with the real resource/data-source counts in
 `note`, or `blocked` with the specific loader failure if the spec does
@@ -111,6 +122,31 @@ mechanical wire-name split is missing? If the grouping already looks
 wrong here, fixing it now is far cheaper than fixing it after
 artifact-authoring has already been batched against the wrong
 services.
+
+**Also check the real NOUN quality, one level below service
+grouping** -- confirmed live, UBI-222, Cloudflare's own real spec:
+`deriveNoun`'s primary path (the response schema's own component name,
+`resourcemap.go`'s own doc comment calls this "the strong, real
+signal") is only as good as how distinctly the spec's own authors name
+their response schemas. Cloudflare reuses a small set of generic
+response-envelope schema names (`single_response`, `id_response`, and
+similar) across hundreds of structurally distinct real resources
+instead of giving each its own uniquely named component -- real,
+correctly-discovered, genuinely distinct resources, disambiguated only
+by an appended collision counter (`cloudflare_access_single_response_2`
+through `_22`, fifteen real, different Access sub-resources). Not a
+loader bug and not a grouping bug -- a real, provider-specific
+naming-quality issue that will make categorization and description
+authoring materially harder for however large a fraction of the
+provider's own wire types it affects. Count it now: how many discovered
+`TypeName`s match a generic-wrapper-name shape (a `_response`/`_result`/
+`_resp`/collection-wrapper suffix, optionally followed by a bare
+collision-counter digit)? Cloudflare's own real number: 34.5% of
+resources, 44.8% of data sources. There is no fix to apply here at this
+hop -- record the real fraction in the manifest so `write-artifacts`
+starts from a real expectation instead of discovering the same pattern
+resource by resource, the same reason the service-grouping check above
+exists.
 
 ## Hop 4: create and push the schema repo
 
