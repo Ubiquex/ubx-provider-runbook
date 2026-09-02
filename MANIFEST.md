@@ -65,7 +65,14 @@ itself.
   `.artifact-manifest.json` in the repo root. Records batch history
   (batch number, wire count written, timestamp) for narrative purposes
   only -- what remains is always recomputed live (see below), never
-  read from this file's own running count.
+  read from this file's own running count. **The migration off the old
+  location was documented here but never actually carried out**,
+  confirmed live, UBI-222: neither `ubx-sdk-digitalocean` nor
+  `ubx-sdk-github` had this file at all before Cloudflare's own
+  categories batch created the first real one, matching this shape.
+  Check a target provider's own repo directly before assuming this
+  file already exists there -- its absence is not evidence no work has
+  happened, only that this specific tracking file was never written.
 - **regen-mintlify-docs** (renamed from **regen-docs**, UBI-240 --
   Mintlify-only, not part of a new provider's own default path): no new
   manifest -- this runbook is the manual/scoped path through the same
