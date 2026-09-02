@@ -150,12 +150,63 @@ exists.
 
 ## Hop 4: create and push the schema repo
 
-`ubx sdk gen --only $ARGUMENTS --dump-ir <dir>` output is what a
-`ubx-schema-$ARGUMENTS` repo's own `v1.0.0` snapshot is generated from
-(`manifest.json` + `members/*.json`, matching every other real
-`ubx-schema-<provider>` repo's own shape). Create the repo (public,
-matching every other real schema repo), commit the generated snapshot,
-push.
+**Not `ubx sdk gen --dump-ir`** -- confirmed live, UBI-222: that flag
+produces the docs/description IR shape (one JSON file per wire type
+plus a combined `schema.json`), a genuinely different, simpler format
+than a real `ubx-schema-$ARGUMENTS` snapshot. The real generation
+command is `ubx-provider-dynamic`'s own `--generate-snapshot-group`,
+run directly against that binary (not through `ubx sdk gen` at all):
+
+```
+UBX_DYNAMIC_PROVIDER_NAME=$ARGUMENTS ubx-provider-dynamic \
+  --generate-snapshot-group <out-dir> \
+  --group-repo-name $ARGUMENTS \
+  --group-members $ARGUMENTS
+```
+
+Run from a directory whose own `.ubx/config` carries
+`[dynamic_providers.$ARGUMENTS]` (see below for why this can't be
+`sdk/providers/` itself). One `--group-members` name, not two --
+`ExpandMemberModes` automatically expands a single
+`[dynamic_providers.$ARGUMENTS]` table into both real members
+(`$ARGUMENTS`, resource mode, and `$ARGUMENTS_ds`, data-source mode),
+writing `manifest.json` + `members/*.json` to `<out-dir>`, matching
+every other real `ubx-schema-<provider>` repo's own shape.
+
+**Run this from a scoped, temporary `.ubx/config` carrying ONLY
+`$ARGUMENTS`'s own table, never `sdk/providers/.ubx/config` directly.**
+Confirmed live: `ubx-provider-dynamic`'s own `internal/config.Load`
+(what `--generate-snapshot-group` uses to read `[dynamic_providers.*]`)
+requires `schema_source` on every table it parses, unconditionally --
+it has no notion of the PINNED shape (`source`/`version`) at all, that
+shape is understood only by `ubiquex`'s own `cli/dynamicprovider.go`.
+Pointing generation at the real monorepo config, which by this point
+carries six or seven already-pinned entries alongside `$ARGUMENTS`'s
+own live one, fails outright (`dynamic_providers.<already-pinned-name>:
+schema_source is required`) before it ever reaches `$ARGUMENTS`.
+Copy just the one real `[dynamic_providers.$ARGUMENTS]` table (the
+same content hop 2 committed) into a scratch `<dir>/.ubx/config` and
+run generation from there instead.
+
+**The generating binary must be a real, released `ubx-provider-dynamic`
+version, not a local build off an unmerged fix.** Confirmed live:
+`--generate-snapshot-group` refuses to write a snapshot whose own
+`min_binary_version` would be the unstamped `"dev"` default (a
+dev-stamped snapshot can't be traced to any real, acquirable binary),
+and a locally-built binary is always `dev`-stamped unless it's an
+actual tagged release checkout. If hop 3 needed a real
+`ubx-provider-dynamic` fix (a real, common shape -- see hop 3's own
+notes), that fix must be reviewed, merged, and a new version actually
+published (this repo's own `publish.yml`, same discipline as any
+`ubx-sdk-<provider>` release) BEFORE this hop can produce a real,
+committable snapshot -- `--allow-dev-binary` exists for local
+iteration only, never for anything meant to be committed. This makes
+hop 4 a genuine, hard dependency on hop 3's own fix landing for real,
+not just being written -- budget for a real pause here waiting on
+review, the same as any other PR this runbook can't self-merge.
+
+Once the snapshot is real: create the repo (public, matching every
+other real schema repo), commit the generated snapshot, push.
 
 **The first push to a brand new schema repo can be blocked by GitHub's
 own secret-scanning push protection**, even when nothing live is in the
