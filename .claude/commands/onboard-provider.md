@@ -24,6 +24,33 @@ After every hop below, append or update that hop's own entry in the
 manifest and commit it in the same commit as the hop's own real work
 where possible.
 
+**Set `UBX_PROVIDER_DYNAMIC_REPO` (or pass `--dynamic-provider-bin`)
+before ANY real `ubx sdk gen` invocation against `$ARGUMENTS`, pinned
+or live** -- confirmed live, UBI-222: this was previously noted only
+under hop 6, but a pinned provider's own `ubx sdk gen` run needs a real
+`ubx-provider-dynamic` binary just as much as a live one does (schema
+RESOLUTION is zero-network once pinned; turning that resolved schema
+into IR/generated code still runs through this binary). Without it,
+every hop from 3 onward fails outright with "no ubx-provider-dynamic
+checkout found." Prefer `--dynamic-provider-bin` pointed at a real,
+downloaded, checksum-verified release binary over
+`UBX_PROVIDER_DYNAMIC_REPO` (a local source build) whenever verifying
+a hop's own real, final behavior -- the release binary is the exact
+real artifact a real install would acquire, not just source that
+happens to match it.
+
+**This whole runbook accumulates commits on one long-lived branch
+across a run that can span hours or multiple sessions -- confirm the
+branch's own PR is still open before every push, not just the first
+one.** Confirmed live, UBI-222: hops 1-3's own PR merged mid-run while
+this session kept working, and the next hop's own commit landed on the
+now-dead branch, invisible from `main`, exactly
+`../TRAPS.md#a-stacked-pr-is-only-safe-while-its-base-is-unmerged`'s
+own real, prescribed failure shape. `gh pr view <n> --json state`
+before every push to a branch already carrying an open PR; if it shows
+`MERGED`, start the next hop's commit on a fresh branch off current
+`main` instead.
+
 ## Hop 1: spec discovery
 
 Confirm `$ARGUMENTS` publishes a real, public, machine-readable schema
@@ -207,6 +234,38 @@ review, the same as any other PR this runbook can't self-merge.
 
 Once the snapshot is real: create the repo (public, matching every
 other real schema repo), commit the generated snapshot, push.
+
+**A real `ubx-schema-$ARGUMENTS` repo needs far more than
+`manifest.json` + `members/*.json`** -- confirmed live, UBI-222: this
+section named only the generated snapshot, the same real gap hop 6
+already documents for an SDK repo ("a real `ubx-sdk-<provider>` repo
+also needs CLAUDE.md, README.md, ..., none of which `ubx sdk gen`
+produces"), never previously written down for THIS hop. None of the
+following is produced by `--generate-snapshot-group` -- copy an
+existing, working `ubx-schema-<provider>` repo's own copy of each
+(one that shares `$ARGUMENTS`'s own real shape: no `redocly_bundle`
+needed, an openapi source, matching `ubx-schema-github`'s own real
+copies most closely as of UBI-222), adapting only the real,
+provider-specific content (names, real counts, the real schema URL,
+any real judgment call like `namespace_from_tags`), never blindly
+find-and-replacing prose -- a naive "github" -> "$ARGUMENTS" substring
+replace corrupts real prose that names an unrelated real thing sharing
+the same substring (confirmed live: "GHEC (GitHub Enterprise Cloud)"
+became nonsense the first blind pass through):
+
+- `LICENSE`, `README.md`, `CLAUDE.md`, `STATE.md`, `HISTORY.md`.
+- `.github/workflows/hash-watch.yml` -- the real, weekly regeneration
+  workflow. Offset its own cron day from every other real schema
+  repo's own slot, so a shared runner queue doesn't stack every
+  provider's own regen on the same day.
+- `.github/workflows/publish.yml` -- cuts the real release hop 5 needs.
+- `.github/workflows/ci.yml` -- validates the committed snapshot
+  actually loads on every push/PR, confirmed fully generic (no real
+  provider-specific content) across every existing schema repo.
+- `.github/workflows/orphan-branch-watch.yml`,
+  `.github/workflows/stale-base-check.yml`,
+  `scripts/orphan_branch_check.py` -- also confirmed fully generic,
+  copy verbatim.
 
 **The first push to a brand new schema repo can be blocked by GitHub's
 own secret-scanning push protection**, even when nothing live is in the
