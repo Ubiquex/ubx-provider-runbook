@@ -104,17 +104,25 @@ merges:
   against `ubx-sdk-$ARGUMENTS`, matching `onboard-provider`'s own hop 6
   (this is the identical mechanism, just against an existing repo
   instead of a new one). Publish and verify per registry, same as
-  there.
+  there -- including the docs release (UBI-240): the same `publish.yml`
+  dispatch already cuts a fresh `docs.tar.gz` against the new schema,
+  which `ubx-docs-providers` picks up the next time that provider's own
+  `versions` array in `config/providers.json` gets the new version
+  appended (a real, separate, one-line PR -- not automatic).
 - Once published: any resource whose fields changed shape needs its
   own artifacts re-checked -- a description authored against the OLD
   field set is not automatically wrong for the new one, but a
   genuinely new or renamed field has no description at all until
   `/write-artifacts $ARGUMENTS` runs again.
-- Docs regeneration (`/regen-docs $ARGUMENTS`) already runs on its own
-  schedule against whatever's currently pinned (UBI-137's own
-  `resource-reference-regen.yml`) -- this hop does not need to trigger
+- **Mintlify docs regeneration is optional** (UBI-240) -- only relevant
+  for the seven providers still dual-tracked there. If this provider is
+  one of them and needs the update to also appear on the old
+  docs.ubiquex.io site, `/regen-mintlify-docs $ARGUMENTS` already runs
+  on its own schedule against whatever's currently pinned (UBI-137's
+  own `resource-reference-regen.yml`); this hop does not need to trigger
   it manually unless the new content needs to appear before that
-  schedule's own next run.
+  schedule's own next run. A genuinely new provider has no Mintlify
+  presence to regenerate at all.
 
 Mark this hop `done` once the SDK side is published and verified; note
 whether artifacts/docs were run as part of the same session or left

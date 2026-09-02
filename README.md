@@ -3,7 +3,7 @@
 Executable runbooks for the four recurring operations against a `ubx`
 provider, as Claude Code slash commands (`.claude/commands/`, invoked
 `/onboard-provider <name>`, `/regen-schema <name>`,
-`/write-artifacts <name>`, `/regen-docs <name>`).
+`/write-artifacts <name>`, `/regen-mintlify-docs <name>`).
 
 This repo carries the procedure -- real commands, real verification,
 real traps. `ubiquex-internals` carries the explanation of why the
@@ -22,16 +22,22 @@ that process instead.
 
 | Command | What it does |
 | --- | --- |
-| `/onboard-provider <name>` | Spec discovery through published SDK packages, for a provider that has never been onboarded. |
+| `/onboard-provider <name>` | Spec discovery through publishing on `ubx-docs-providers`, for a provider that has never been onboarded. |
 | `/regen-schema <name>` | Cut a fresh pinned snapshot when a provider's own upstream spec has drifted. |
-| `/write-artifacts <name>` | Write the intros, categories, and depth-0 field descriptions a provider's own pages need before they can ship. |
-| `/regen-docs <name>` | Regenerate Resource Reference pages against whatever's currently pinned. |
+| `/write-artifacts <name>` | Write the intros, categories, and depth-0 field descriptions a provider's own pages need, in its own `ubx-sdk-<name>` repo. |
+| `/regen-mintlify-docs <name>` | Mintlify only (docs.ubiquex.io) -- regenerate Resource Reference pages against whatever's currently pinned. Not part of a new provider's own default path. |
 
-`onboard-provider` -> `write-artifacts` -> `regen-docs` is the real,
-end-to-end path for a brand new provider. `regen-schema` -> (SDK regen)
--> `write-artifacts` (for anything genuinely new or renamed) ->
-`regen-docs` is the same shape for an existing provider whose upstream
-changed.
+`onboard-provider` is the real, end-to-end path for a brand new
+provider (UBI-240): it ends live on `ubx-docs-providers`
+(providers.ubiquex.io) with zero descriptions authored, `write-artifacts`
+an optional, additive follow-up for richer pages, never a blocker.
+`regen-schema` -> (SDK regen, which also refreshes the docs release) ->
+`write-artifacts` (for anything genuinely new or renamed) is the same
+shape for an existing provider whose upstream changed.
+`regen-mintlify-docs` only enters either path when a provider is also,
+separately, meant to carry Mintlify coverage -- the seven providers
+already dual-tracked there are the current, transitional case, not a
+pattern to extend.
 
 ## Two things every runbook holds to
 

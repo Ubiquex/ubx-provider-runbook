@@ -18,7 +18,10 @@ already established there for the rest of the system (UBI-191).
 Coordinating repo: `github.com/Ubiquex/ubiquex`. This repo has no code
 of its own to build or test -- every command in every runbook runs
 against `ubiquex`, `ubx-provider-dynamic`, a provider's own
-`ubx-schema-<name>`/`ubx-sdk-<name>` repos, or `ubiquex-docs`.
+`ubx-schema-<name>`/`ubx-sdk-<name>` repos, `ubx-docs-providers`
+(UBI-240: the real, current docs site every new provider lands on), or
+`ubiquex-docs` (the authoring toolchain, and the old, Mintlify-only
+docs site a handful of already-migrated providers still dual-track).
 
 ## The manifest convention
 

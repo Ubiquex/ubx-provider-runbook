@@ -183,18 +183,30 @@ than left as a checklist a future session could miss the same way:
   the first of the two real DigitalOcean gaps.
 - **`ubx sdk init-repo --out <dir>/$ARGUMENTS --short-name $ARGUMENTS
   --provider-display "<Display Name>" --source-note "<one real,
-  honest sentence>"`, run once, right after the `--lang go/py/ts`
+  honest sentence>" --schema-pin-version "<the real, current pin
+  version from hop 5>"`, run once, right after the `--lang go/py/ts`
   calls above.** Writes everything else a new repo needs and `ubx sdk
   gen` still doesn't produce: `LICENSE`, `.github/scripts/build-npm.mjs`,
-  `.github/workflows/publish.yml`, `CLAUDE.md`, `README.md`, `STATE.md`,
-  `HISTORY.md`, and a real `sdk/go/go.sum` via an actual `go mod tidy`
-  subprocess run. Never overwrites a file that already exists (safe to
-  re-run). `--source-note` is the one real judgment call this command
-  can't make for you -- one honest sentence on this provider's own
-  schema source and format (e.g. `"OpenAPI-sourced via
-  \`ubx-provider-dynamic\`"`; Datadog's own real v1/v2 API merge is the
-  confirmed example of a provider needing something more specific than
-  the generic default).
+  `.github/workflows/publish.yml` (UBI-240: now includes the real
+  docs-artifact step, templated -- no separate hand-added step needed
+  the way every provider onboarded before this got), `CLAUDE.md`,
+  `README.md`, `STATE.md`, `HISTORY.md`, and a real `sdk/go/go.sum` via
+  an actual `go mod tidy` subprocess run. Never overwrites a file that
+  already exists (safe to re-run). `--source-note` is the one real
+  judgment call this command can't make for you -- one honest sentence
+  on this provider's own schema source and format (e.g.
+  `"OpenAPI-sourced via \`ubx-provider-dynamic\`"`; Datadog's own real
+  v1/v2 API merge is the confirmed example of a provider needing
+  something more specific than the generic default). `--schema-pin-version`
+  is hop 5's own real, current pin version, read directly from
+  `sdk/providers/.ubx/config`'s own `[dynamic_providers.$ARGUMENTS]`
+  entry -- baked into the generated `publish.yml`'s own schema-dump
+  step. A provider whose own upstream has no discrete pinnable release
+  (Kubernetes is the one real exception in this org, its own OpenAPI
+  spec fetched unpinned from a live branch tip) needs that one
+  generated step hand-adjusted afterward to a live `schema_source`/
+  `schema_url` shape -- see `ubx-sdk-kubernetes`'s own `publish.yml`
+  for that real, working shape.
 - **`.github/workflows/hash-watch.yml` is the one file this command
   deliberately does NOT write** -- it needs real, provider-specific
   content (which upstream URL to poll, how to hash it) that differs
@@ -230,28 +242,67 @@ than left as a checklist a future session could miss the same way:
   this.
 
 Create `ubx-sdk-$ARGUMENTS` (public), commit the generated bindings
-plus every item above, push, open a PR. Once merged, dispatch that
-repo's own `publish.yml`.
+plus every item above (including empty `artifacts/$ARGUMENTS/` --
+`descriptions.json`/`intros.json`/`categories.json`/`exclusions.json`,
+each `{}` or the equivalent empty shape -- publish.yml's own
+docs-artifact step reads these files unconditionally and fails if
+they're missing entirely, even though a brand new provider has nothing
+real in them yet), push, open a PR. Once merged, dispatch that repo's
+own `publish.yml`.
 
 **Verify the publish by querying each registry for the specific
 version** -- npm, PyPI, the Go module proxy, each queried for the exact
 new version string, never `@latest` and never the workflow's own exit
 status. See `../TRAPS.md#verify-a-publish-by-querying-each-registry-for-the-specific-version`
 for why `@latest` specifically has lagged a real, already-tagged version
-before.
+before. **Also verify the docs release** (UBI-240): `gh release view
+v<version> --repo Ubiquex/ubx-sdk-$ARGUMENTS --json assets` carries
+exactly `docs.tar.gz` and `SHA256SUMS` -- this is the same publish.yml
+dispatch, not a separate action, but a real, independent thing to
+confirm rather than assume from the workflow's own green checkmark.
 
-Mark `done` with all three real, independently-queried version numbers.
+Mark `done` with all four real, independently-queried results (npm,
+PyPI, Go proxy, docs release).
 
-## Hop 7: hand off to write-artifacts
+## Hop 7: bring the provider onto the docs site
 
-Onboarding ends here -- the provider has a real, published schema and
-real, published SDK bindings, with zero descriptions/intros/categories
-written yet (a brand new provider has no existing artifacts to inherit,
-unlike a `regen-schema` run against a provider that already has some).
-Run `/write-artifacts $ARGUMENTS` next, as its own separate session or
-sessions -- do not attempt artifact authoring inside this same session
-just because context happens to remain; a hundred intros is real work
-with its own real batching discipline, covered in that runbook.
+`ubx-docs-providers` (providers.ubiquex.io) is the real, current docs
+site (UBI-240) -- a genuinely new provider goes here, not Mintlify
+(see hop 8's own note on why not). This hop is small and does not need
+its own session: add one entry to `ubx-docs-providers`'
+`config/providers.json` (name, description, repo, tier, the one real
+version from hop 6), matching every existing entry's own shape. Real
+PR, never self-merged, matching that repo's own convention.
 
-Mark this hop `done` once `/write-artifacts` has been invoked at least
-once for `$ARGUMENTS`, whether or not it finished in one pass.
+The site will render the provider correctly with zero descriptions
+authored -- DigitalOcean's own real first migration had 0 AI-inferred
+fields and served real pages regardless. Confirm live: a real `npm run
+build` in `ubx-docs-providers` (or, once merged, the real deployed
+site) shows a real provider home page and at least one real resource
+page for `$ARGUMENTS`, not just a config diff that looks plausible.
+
+Mark this hop `done` with the merged PR URL once confirmed live.
+
+## Hop 8: optional -- richer descriptions, and Mintlify only if asked for
+
+The provider is real and live on `ubx-docs-providers` after hop 7.
+Everything past this point is optional, additive polish, never
+required to consider onboarding finished:
+
+- **`/write-artifacts $ARGUMENTS`** (its own runbook, rewritten for
+  UBI-240 to target this new SDK repo directly) writes real descriptions,
+  intros, and categories in place of the empty stubs hop 6 committed --
+  richer pages, not a correctness requirement. Run it as its own
+  separate session or sessions; a hundred intros is real work with its
+  own real batching discipline, covered there.
+- **`/regen-mintlify-docs $ARGUMENTS`** (renamed from `/regen-docs`,
+  UBI-240) is Mintlify-specific -- it generates `resource-reference/`
+  pages for the OLD docs.ubiquex.io site, the surface UBI-240 is moving
+  providers off of, not onto. Run it only if there is an explicit,
+  separate decision to also carry this provider on Mintlify -- never as
+  part of a genuinely new provider's own default path. It brings back
+  every one of `../TRAPS.md#a-hardcoded-provider-allowlist-is-invisible-until-a-genuinely-new-provider-arrives`'s
+  own hardcoded allowlists, none of which `ubx-docs-providers` has.
+
+Neither hop needs to be marked `done` in this runbook's own manifest --
+onboarding itself is complete as of hop 7.

@@ -4,6 +4,21 @@ schema is currently pinned, using the same real mechanism
 runbook is the manual, scoped path through it, not a separate
 implementation.
 
+**Mintlify only (UBI-240), renamed from `/regen-docs` to say so
+plainly.** This generates pages for the old docs.ubiquex.io site, the
+surface UBI-240 is moving providers off of. `ubx-docs-providers`
+(providers.ubiquex.io), the real, current site, needs none of this --
+it renders straight from a real schema dump and the committed
+`artifacts/<provider>/` at build time, no separate page-generation
+step, no `docs.json` nav bootstrap, no per-script provider allowlist.
+Run this only when there is an explicit, separate decision to also
+carry a provider on Mintlify -- never as part of a new provider's own
+default path (`onboard-provider.md`'s own hop 8 covers this exactly).
+The seven providers already dual-tracked stay that way only because
+real, live Mintlify pages still read their old `ubiquex-docs`-hosted
+artifacts; that is transitional, not a pattern to extend to a new
+provider.
+
 ## Before starting
 
 Read `../TRAPS.md` and `../MANIFEST.md` if you have not already this

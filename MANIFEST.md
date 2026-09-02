@@ -59,20 +59,24 @@ itself.
 - **regen-schema**: the provider's own `ubx-schema-<name>` repo, at
   `.regen-manifest.json` in the repo root, alongside that repo's own
   `STATE.md`.
-- **write-artifacts**: `ubiquex-docs`, at
-  `scripts/resource-reference-gen/artifact-manifests/<provider>.json`.
-  Records batch history (batch number, wire count written, timestamp)
-  for narrative purposes only -- what remains is always recomputed live
-  (see below), never read from this file's own running count.
-- **regen-docs**: no new manifest -- this runbook is the manual/scoped
-  path through the same real mechanism UBI-137's own automation already
-  runs in CI (`regen_all.py`). Its own JSON report, written to
+- **write-artifacts**: `ubx-sdk-<provider>` (UBI-240 -- moved from
+  `ubiquex-docs`' own `scripts/resource-reference-gen/artifact-manifests/<provider>.json`,
+  where every provider's own artifacts used to live), at
+  `.artifact-manifest.json` in the repo root. Records batch history
+  (batch number, wire count written, timestamp) for narrative purposes
+  only -- what remains is always recomputed live (see below), never
+  read from this file's own running count.
+- **regen-mintlify-docs** (renamed from **regen-docs**, UBI-240 --
+  Mintlify-only, not part of a new provider's own default path): no new
+  manifest -- this runbook is the manual/scoped path through the same
+  real mechanism UBI-137's own automation already runs in CI
+  (`regen_all.py`). Its own JSON report, written to
   `/tmp/regen-scratch/<provider>_regen_result.json` and
   `<provider>_datasource_regen_result.json` during a run, already
   records per-wire coverage results and page paths -- reuse it, don't
-  duplicate it. See `regen-docs.md` for why this one hop's manifest is
-  intentionally ephemeral where the other three are not: a docs
-  regeneration is re-run from a fresh schema pin every time, never
+  duplicate it. See `regen-mintlify-docs.md` for why this one hop's
+  manifest is intentionally ephemeral where the other three are not: a
+  docs regeneration is re-run from a fresh schema pin every time, never
   resumed against a stale one.
 
 ## The manifest records history, never the resume point
