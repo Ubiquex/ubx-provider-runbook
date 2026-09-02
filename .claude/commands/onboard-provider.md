@@ -24,6 +24,33 @@ After every hop below, append or update that hop's own entry in the
 manifest and commit it in the same commit as the hop's own real work
 where possible.
 
+**Set `UBX_PROVIDER_DYNAMIC_REPO` (or pass `--dynamic-provider-bin`)
+before ANY real `ubx sdk gen` invocation against `$ARGUMENTS`, pinned
+or live** -- confirmed live, UBI-222: this was previously noted only
+under hop 6, but a pinned provider's own `ubx sdk gen` run needs a real
+`ubx-provider-dynamic` binary just as much as a live one does (schema
+RESOLUTION is zero-network once pinned; turning that resolved schema
+into IR/generated code still runs through this binary). Without it,
+every hop from 3 onward fails outright with "no ubx-provider-dynamic
+checkout found." Prefer `--dynamic-provider-bin` pointed at a real,
+downloaded, checksum-verified release binary over
+`UBX_PROVIDER_DYNAMIC_REPO` (a local source build) whenever verifying
+a hop's own real, final behavior -- the release binary is the exact
+real artifact a real install would acquire, not just source that
+happens to match it.
+
+**This whole runbook accumulates commits on one long-lived branch
+across a run that can span hours or multiple sessions -- confirm the
+branch's own PR is still open before every push, not just the first
+one.** Confirmed live, UBI-222: hops 1-3's own PR merged mid-run while
+this session kept working, and the next hop's own commit landed on the
+now-dead branch, invisible from `main`, exactly
+`../TRAPS.md#a-stacked-pr-is-only-safe-while-its-base-is-unmerged`'s
+own real, prescribed failure shape. `gh pr view <n> --json state`
+before every push to a branch already carrying an open PR; if it shows
+`MERGED`, start the next hop's commit on a fresh branch off current
+`main` instead.
+
 ## Hop 1: spec discovery
 
 Confirm `$ARGUMENTS` publishes a real, public, machine-readable schema
@@ -150,12 +177,95 @@ exists.
 
 ## Hop 4: create and push the schema repo
 
-`ubx sdk gen --only $ARGUMENTS --dump-ir <dir>` output is what a
-`ubx-schema-$ARGUMENTS` repo's own `v1.0.0` snapshot is generated from
-(`manifest.json` + `members/*.json`, matching every other real
-`ubx-schema-<provider>` repo's own shape). Create the repo (public,
-matching every other real schema repo), commit the generated snapshot,
-push.
+**Not `ubx sdk gen --dump-ir`** -- confirmed live, UBI-222: that flag
+produces the docs/description IR shape (one JSON file per wire type
+plus a combined `schema.json`), a genuinely different, simpler format
+than a real `ubx-schema-$ARGUMENTS` snapshot. The real generation
+command is `ubx-provider-dynamic`'s own `--generate-snapshot-group`,
+run directly against that binary (not through `ubx sdk gen` at all):
+
+```
+UBX_DYNAMIC_PROVIDER_NAME=$ARGUMENTS ubx-provider-dynamic \
+  --generate-snapshot-group <out-dir> \
+  --group-repo-name $ARGUMENTS \
+  --group-members $ARGUMENTS
+```
+
+Run from a directory whose own `.ubx/config` carries
+`[dynamic_providers.$ARGUMENTS]` (see below for why this can't be
+`sdk/providers/` itself). One `--group-members` name, not two --
+`ExpandMemberModes` automatically expands a single
+`[dynamic_providers.$ARGUMENTS]` table into both real members
+(`$ARGUMENTS`, resource mode, and `$ARGUMENTS_ds`, data-source mode),
+writing `manifest.json` + `members/*.json` to `<out-dir>`, matching
+every other real `ubx-schema-<provider>` repo's own shape.
+
+**Run this from a scoped, temporary `.ubx/config` carrying ONLY
+`$ARGUMENTS`'s own table, never `sdk/providers/.ubx/config` directly.**
+Confirmed live: `ubx-provider-dynamic`'s own `internal/config.Load`
+(what `--generate-snapshot-group` uses to read `[dynamic_providers.*]`)
+requires `schema_source` on every table it parses, unconditionally --
+it has no notion of the PINNED shape (`source`/`version`) at all, that
+shape is understood only by `ubiquex`'s own `cli/dynamicprovider.go`.
+Pointing generation at the real monorepo config, which by this point
+carries six or seven already-pinned entries alongside `$ARGUMENTS`'s
+own live one, fails outright (`dynamic_providers.<already-pinned-name>:
+schema_source is required`) before it ever reaches `$ARGUMENTS`.
+Copy just the one real `[dynamic_providers.$ARGUMENTS]` table (the
+same content hop 2 committed) into a scratch `<dir>/.ubx/config` and
+run generation from there instead.
+
+**The generating binary must be a real, released `ubx-provider-dynamic`
+version, not a local build off an unmerged fix.** Confirmed live:
+`--generate-snapshot-group` refuses to write a snapshot whose own
+`min_binary_version` would be the unstamped `"dev"` default (a
+dev-stamped snapshot can't be traced to any real, acquirable binary),
+and a locally-built binary is always `dev`-stamped unless it's an
+actual tagged release checkout. If hop 3 needed a real
+`ubx-provider-dynamic` fix (a real, common shape -- see hop 3's own
+notes), that fix must be reviewed, merged, and a new version actually
+published (this repo's own `publish.yml`, same discipline as any
+`ubx-sdk-<provider>` release) BEFORE this hop can produce a real,
+committable snapshot -- `--allow-dev-binary` exists for local
+iteration only, never for anything meant to be committed. This makes
+hop 4 a genuine, hard dependency on hop 3's own fix landing for real,
+not just being written -- budget for a real pause here waiting on
+review, the same as any other PR this runbook can't self-merge.
+
+Once the snapshot is real: create the repo (public, matching every
+other real schema repo), commit the generated snapshot, push.
+
+**A real `ubx-schema-$ARGUMENTS` repo needs far more than
+`manifest.json` + `members/*.json`** -- confirmed live, UBI-222: this
+section named only the generated snapshot, the same real gap hop 6
+already documents for an SDK repo ("a real `ubx-sdk-<provider>` repo
+also needs CLAUDE.md, README.md, ..., none of which `ubx sdk gen`
+produces"), never previously written down for THIS hop. None of the
+following is produced by `--generate-snapshot-group` -- copy an
+existing, working `ubx-schema-<provider>` repo's own copy of each
+(one that shares `$ARGUMENTS`'s own real shape: no `redocly_bundle`
+needed, an openapi source, matching `ubx-schema-github`'s own real
+copies most closely as of UBI-222), adapting only the real,
+provider-specific content (names, real counts, the real schema URL,
+any real judgment call like `namespace_from_tags`), never blindly
+find-and-replacing prose -- a naive "github" -> "$ARGUMENTS" substring
+replace corrupts real prose that names an unrelated real thing sharing
+the same substring (confirmed live: "GHEC (GitHub Enterprise Cloud)"
+became nonsense the first blind pass through):
+
+- `LICENSE`, `README.md`, `CLAUDE.md`, `STATE.md`, `HISTORY.md`.
+- `.github/workflows/hash-watch.yml` -- the real, weekly regeneration
+  workflow. Offset its own cron day from every other real schema
+  repo's own slot, so a shared runner queue doesn't stack every
+  provider's own regen on the same day.
+- `.github/workflows/publish.yml` -- cuts the real release hop 5 needs.
+- `.github/workflows/ci.yml` -- validates the committed snapshot
+  actually loads on every push/PR, confirmed fully generic (no real
+  provider-specific content) across every existing schema repo.
+- `.github/workflows/orphan-branch-watch.yml`,
+  `.github/workflows/stale-base-check.yml`,
+  `scripts/orphan_branch_check.py` -- also confirmed fully generic,
+  copy verbatim.
 
 **The first push to a brand new schema repo can be blocked by GitHub's
 own secret-scanning push protection**, even when nothing live is in the
