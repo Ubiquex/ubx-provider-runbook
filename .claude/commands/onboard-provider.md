@@ -370,22 +370,25 @@ than left as a checklist a future session could miss the same way:
   `sdk/python/pyproject.toml`, `sdk/typescript/deno.json`, and
   `sdk/typescript/package.json` together (Go needs no file bump --
   `publish.yml`'s own design publishes it via a pushed tag).
-- **`NPM_TOKEN` and `PYPI_TOKEN` as real, dedicated repo secrets**
-  (Settings -> Secrets and variables -> Actions), scoped to this one
-  new repo -- `publish.yml`'s own doc comment already says these are
-  "dedicated CI tokens, scoped to this repo/package," never shared or
-  inherited from another repo. A brand new provider genuinely needs
-  its own newly-created tokens; only the real npm/PyPI account owner
-  can create and add them. The first `publish.yml` dispatch against a
-  repo missing these fails with a real `ENEEDAUTH` (a genuine auth
-  failure, distinct from `MODULE_NOT_FOUND` above) -- confirm this
-  step actually happened before dispatching, since `ubx sdk init-repo`
-  cannot do this part; it needs a real credential only a human has. If
-  it fails with `ENEEDAUTH` even after the secrets are added, check
-  whether they were added as ORG-level secrets with a repository
-  access list that doesn't include this new repo yet -- confirmed real
-  precedent, `ubx-sdk-typescript`'s own earlier onboarding hit exactly
-  this.
+- **`NPM_TOKEN` and `PYPI_TOKEN` must be real, available to this repo**
+  before dispatching `publish.yml` -- `ubx sdk init-repo` cannot do
+  this part; it needs a real credential only a human has. **Check
+  first with `gh api repos/<owner>/ubx-sdk-$ARGUMENTS/actions/organization-secrets`,
+  never `gh secret list`** -- confirmed real precedent, three times
+  now (`ubx-sdk-typescript`, `ubx-sdk-python`, and `ubx-sdk-cloudflare`
+  itself, UBI-222): `gh secret list` only shows repo-level secrets, so
+  an org-level `NPM_TOKEN`/`PYPI_TOKEN` with a selected-repositories
+  list that simply doesn't include this new repo yet reads as "not
+  configured" and gets reported as needing new tokens created, when
+  the real, only-missing step is adding the repo to the existing
+  access list -- see
+  `../TRAPS.md#gh-secret-list-on-a-repo-does-not-show-org-level-secrets-and-reads-as-absent-rather-than-as-check-elsewhere`.
+  If that check comes back genuinely empty (no org-level tokens visible
+  to this repo at all), then real, newly-created, repo-scoped secrets
+  are needed -- only the real npm/PyPI account owner can create and add
+  those. Dispatching against a repo with neither fails with a real
+  `ENEEDAUTH` (a genuine auth failure, distinct from `MODULE_NOT_FOUND`
+  above).
 
 Create `ubx-sdk-$ARGUMENTS` (public), commit the generated bindings
 plus every item above (including empty `artifacts/$ARGUMENTS/` --
