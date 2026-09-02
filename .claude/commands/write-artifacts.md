@@ -35,7 +35,9 @@ target has no such tree):
 1. **An intro** -- one real paragraph, `artifacts/$ARGUMENTS/intros.json`.
 2. **A category** -- a service-level label, either an explicit override
    in `artifacts/$ARGUMENTS/categories.json` or a valid default
-   derivation from the wire's own service name.
+   derivation from the wire's own service name. Not authored one wire
+   at a time -- see "Deriving a real category" below for the real
+   method (UBI-245).
 3. **A depth-0 field description for every top-level field** --
    `artifacts/$ARGUMENTS/descriptions.json`, depth-0 ONLY. A nested
    field with no description is not a gap this check enforces.
@@ -128,6 +130,31 @@ After each batch:
    PR if the founder's own review cadence prefers that; either is fine
    as long as nothing merges itself.
 
+**A batch that touches only `artifacts/$ARGUMENTS/*.json` needs a
+version bump in the same PR, or the next real publish silently no-ops
+or fails outright.** `publish.yml`'s own automatic version-bump logic
+diffs only `sdk/go/`, `sdk/typescript/`, `sdk/python/` against the last
+published tag -- an artifacts-only change is invisible to that diff, so
+the workflow treats the committed version as already published and
+unchanged, and `gh release create` then fails on a tag that already
+exists (confirmed live, UBI-245: this is exactly what happened dispatching
+`publish.yml` for six of seven providers after an artifacts-only PR).
+Bump the PATCH version in `sdk/typescript/package.json`,
+`sdk/typescript/deno.json`, and `sdk/python/pyproject.toml` (all three,
+kept in sync -- `publish.yml` fails outright if `package.json` and
+`pyproject.toml` disagree) as part of the same commit, with no other
+`sdk/go`/`sdk/typescript`/`sdk/python` content changed. The one real
+exception: if the committed version is already ahead of what's live on
+PyPI/npm (a prior code regen bumped it but never got published), no
+bump is needed here -- but confirm that by querying the live registries
+directly, not by reading the committed version file alone; a registry
+can advance between when you check and when `publish.yml` actually
+runs, in which case it applies its own routine PATCH bump on top
+regardless, and the version that actually ships may not be the one you
+predicted. Either way, verify the real published version and content
+after publish -- `../TRAPS.md#verify-a-publish-by-querying-each-registry-for-the-specific-version`
+applies to the docs release exactly as it does to PyPI/npm/Go.
+
 A session that runs out of context mid-batch: whatever was actually
 committed stands (never leave written-but-uncommitted artifact edits --
 `../TRAPS.md#run-git-status-before-claiming-work-is-committed` applies
@@ -144,6 +171,73 @@ name. Read the wire's own real fields and the vendor spec's own
 description text (if any) before writing one; a wire with genuinely
 opaque fields and no vendor text at all is worth flagging rather than
 guessing at content that reads confidently but is wrong.
+
+## Deriving a real category, not authoring from scratch (UBI-245)
+
+A category is not authored per wire, and it is not authored from
+nothing. It is derived per **service token** -- the wire's own
+`service` field -- and a resource shares its token's real label with
+its own same-named data source (a data source's category key is the
+`data_` prefix stripped before lookup; see `lib/docs.ts` in
+`ubx-docs-providers` for the real, live version of this exact rule).
+
+For every distinct service token in the target's real schema, gather
+every real, already-existing label across ALL of that token's own wire
+types (resources and data sources together), then classify:
+
+1. **Clean** -- every covered wire type agrees on exactly one real
+   label. Inherits automatically, including an uncovered sibling wire
+   type of the same token. No authoring needed. This is most tokens --
+   real, measured range across all seven providers already onboarded,
+   at the wire-type level: 74% (AWS, Datadog) to 100% (Google) resolve
+   this way with zero hand-authoring.
+2. **Ambiguous** -- more than one distinct real label across the
+   token's own covered wire types. The token genuinely covers more
+   than one real product (AWS's own `ec2` token really does span
+   Amazon EC2, Amazon VPC, AWS Transit Gateway, and AWS Verified
+   Access) -- split it by what each wire's own schema fields actually
+   describe: real, verified keyword/substring rules or a lookup table,
+   built and checked against every already-covered wire type of that
+   token until it matches 100%, never guessed and left unverified. A
+   token that only LOOKS ambiguous -- the same real service spelled two
+   ways by two different generators (CFN vs. Smithy, for one real
+   example) -- is not this case; canonicalize first (strip
+   underscores, compare) and merge before splitting anything, or a
+   spelling variant gets treated as a second product it was never
+   meant to be. Real, measured total across all seven providers already
+   onboarded: 25 ambiguous tokens, combined.
+3. **No-signal** -- zero real labels anywhere on the token. Author a
+   real product name: check this target's own `categories.json` for an
+   existing label that already covers the same real product first
+   (reuse it, don't invent a near-duplicate), and verify against the
+   vendor's own current documentation for anything genuinely
+   unfamiliar rather than guessing at a plausible-sounding name -- a
+   flagged low-confidence entry is cheap to correct later, a
+   confidently wrong product name is not. This bucket skews heavily
+   toward read-only, data-source-only services (AWS's own no-signal
+   bucket alone was 1,308 of 6,241 real wire types, almost entirely
+   data sources with no resource sibling to inherit a label from) --
+   for most of them the real category is simply the product the
+   read-only API reads from (AWS's own `access_analyzer` is IAM Access
+   Analyzer).
+
+Batch and commit the no-signal authoring the same way intros are
+batched above -- a manifest, real running totals per commit, low and
+medium confidence entries flagged with their own reasoning rather than
+committed at silent full confidence.
+
+**Verify 100% coverage before calling this done.** A live recompute
+(the same shape as intro coverage: diff the real, current schema's own
+service tokens against the real, currently-committed
+`categories.json`) must report zero wire types with no real label --
+not "most," not "the batches that were planned." `ubx-docs-providers`'
+own `build-sidebar-index.mjs` stopped inferring a label for an
+uncovered wire type once this method made 100% coverage real (UBI-245)
+-- an uncovered wire type there now surfaces honestly as
+`Uncategorized` rather than being silently guessed into a plausible-
+looking group, which means an incomplete categorization pass is no
+longer invisible on the real site, it is a visible regression the
+moment it ships.
 
 ## Done
 

@@ -210,6 +210,42 @@ generated). Same for `docs.json`'s own nav groups: confirm the
 provider's own group already exists before assuming `regen-mintlify-docs` will
 create it.
 
+## A cold cache exercises code paths a warm one never does
+
+Two real bugs sat in `ubx-docs-providers`'s own fetch/build scripts for
+as long as they existed, both invisible for the same reason: every
+fetch against them, across this whole project's history, had a warm
+`.docs-cache` or a local `UBX_DOCS_MIRROR` satisfying the request, so
+the real "download from a GitHub Release and verify it" path had
+genuinely never run end to end before UBI-245 forced a first real
+fetch with an empty cache.
+
+**`SHA256SUMS`'s own recorded filename is a full CI runner path, not a
+bare filename.** Every `ubx-sdk-<provider>` `publish.yml` runs
+`sha256sum "${{ runner.temp }}/docs.tar.gz" > SHA256SUMS`, and
+`sha256sum` echoes back exactly the path it was given -- so the real,
+live file reads `<digest>  /home/runner/work/_temp/docs.tar.gz`, not
+`<digest>  docs.tar.gz`. `fetch-docs.mjs`'s own checksum parser matched
+by exact string, which made every real release un-fetchable the moment
+there was no cache entry to fall back on. Match by basename, not exact
+string, when parsing a `SHA256SUMS` line this project did not generate
+under its own control.
+
+**A subprocess formatting hundreds or thousands of generated files can
+exceed a 1MB default stdout/stderr buffer before it ever produces a
+real error.** `build-examples.mjs`'s own `gofmt`/`deno fmt` calls used
+`execFileSync`'s default `maxBuffer` (1MB) -- fine at a few thousand
+examples, not once real coverage across old and new versions together
+crossed 24,000. Both tools print real per-file output as they walk a
+directory, and that output alone crossed the buffer limit before
+either tool reached a genuine syntax problem, surfacing as a truncated,
+misleading "rejected generated source" error with no real message at
+the end of it. A build that only ever ran against a small, single-
+version fixture had no occasion to hit this; raise the buffer
+generously (not tuned to today's exact count) the first time a real
+multi-version, real-scale build is attempted, rather than waiting to
+discover the limit live.
+
 ## A script's stdout looking right to a human is not the same as its being parseable
 
 A script whose own doc comment promises a specific machine-readable
