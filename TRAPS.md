@@ -91,6 +91,44 @@ specific version (or `dist-tags`), never the bare package document --
 the bare document is a different, apparently less reliably-cached
 resource, and its 404 is not evidence the publish failed.
 
+**For a scoped package, the real `dist-tags` endpoint is
+`registry.npmjs.org/-/package/<url-encoded-name>/dist-tags`, not
+`registry.npmjs.org/<url-encoded-name>/dist-tags`.** Confirmed live,
+UBI-222: the latter 404s with `"version not found: dist-tags"` -- npm
+parses the path segment after the package name as a VERSION specifier
+on that route, and "dist-tags" is not one, so it fails in a way that
+reads like a real "not published yet" result rather than a wrong URL.
+The former is the real, correct route.
+
+## `gh secret list` on a repo does not show org-level secrets, and reads as absent rather than as "check elsewhere"
+
+`gh secret list --repo <owner>/<repo>` only lists secrets created
+directly on that repo. An org-level secret with a "selected
+repositories" visibility that includes the repo is real and live --
+its own workflows can read it -- but `gh secret list` against that
+same repo returns empty, with nothing in the output distinguishing
+"no secret configured anywhere" from "a real secret exists at the org
+level, this command just cannot see it." This has produced the exact
+same real, wrong conclusion three separate times in this org:
+`ubx-sdk-typescript`'s and `ubx-sdk-python`'s own earlier onboardings,
+and again here with `ubx-sdk-cloudflare` (UBI-222) -- a new repo's
+`gh secret list` came back empty, read as "the tokens need to be
+created," when the real, only-missing piece was adding the new repo to
+`NPM_TOKEN`/`PYPI_TOKEN`'s own existing org-level access list.
+
+**The real check**: `gh api repos/<owner>/<repo>/actions/organization-secrets`
+-- repo-scoped, lists exactly the org-level secrets that repo can
+currently see, distinct from the org-wide listing endpoint (which
+needs `admin:org` this session's own token may not have). Confirmed
+live: this endpoint returned the two real tokens, with matching
+creation timestamps, for `ubx-sdk-digitalocean` and `ubx-sdk-github`
+(both known to have published successfully before) and an empty list
+for `ubx-sdk-cloudflare` -- proving the tokens were real, org-level,
+and selected-repositories-scoped, not missing, before a single new
+token needed creating. Run this before ever concluding a secret
+"doesn't exist" for a repo that a plain `gh secret list` came back
+empty on.
+
 ## Build from current source, not whatever binary is in the path
 
 A stale `ubx` on `PATH` produces a result that looks identical to a
