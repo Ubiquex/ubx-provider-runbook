@@ -343,3 +343,25 @@ that genuinely needed review. The line has to be written so checking
 it is mechanical too -- if a diff has anything outside the closed list,
 even one line, it needs review as a whole; if it is unclear which
 category a PR falls into, it needs review.
+
+## A 10% random sample across a member group can miss every real hit
+
+UBI-222's own cross-provider check for the `findCreate` inline-envelope
+false-create-matching bug (see hop 8's own notes) sampled 30 of
+Azure's 302 real non-`_ds` members (seeded random) to check exposure
+without running all 302 -- came back completely clean, reported as
+such. Running the real, exhaustive 302-member check afterward (not
+much more expensive: ~1s per member, parallelizable) found 13 real
+affected members (4.3%), 46 real affected resources -- the 30-sample
+missed every single one, not by a small margin. The affected members
+were not scattered evenly; nine of the thirteen were all inside one
+service family (`apimanagement`), which a small random sample across
+302 members has real, structural odds of missing entirely (a cluster
+this size is easy to draw zero of at n=30) even though the true
+provider-wide rate (4.3%) is not actually rare. Lesson: for a
+member-grouped provider (Azure's own real per-service-spec shape),
+"sample a fraction and report clean" is not a substitute for the real
+exhaustive check when the check itself is cheap -- reserve sampling for
+when exhaustive is genuinely infeasible (very large N, expensive
+per-item cost), and even then, report the sample's own real confidence
+bound, not just "N of M checked, clean."
