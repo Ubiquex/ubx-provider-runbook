@@ -365,3 +365,58 @@ exhaustive check when the check itself is cheap -- reserve sampling for
 when exhaustive is genuinely infeasible (very large N, expensive
 per-item cost), and even then, report the sample's own real confidence
 bound, not just "N of M checked, clean."
+
+## A scratch probe against a provider with real external `$ref`s must call Bundle, not just Load
+
+`internal/openapi.Load` alone resolves a spec's own top-level document
+and any relative `$ref` it can reach against the source's own real
+location, but does not perform the separate, explicit `Bundle()` pass
+`internal/snapshot/generate.go`'s own real generation path always
+applies afterward for a provider whose spec references *other* files
+(`internal/openapi.Bundle`'s own doc comment has the full real reason
+-- Azure's own real ARM specs split themselves across shared files by
+relative path, e.g. `../../../../../../common-types/resource-management/
+v5/types.json#/definitions/ProxyResource`, and Azure's own ref graph is
+genuinely cyclic, not just deep). A scratch tool built to probe
+`resourcemap.Discover()` behavior that calls `Load` alone against a
+live URL, without the follow-up `Bundle()` call, produces a REAL,
+DIFFERENT result for any such provider -- not an error, not a crash,
+a plausible-looking but wrong Discover() output, because an external
+`$ref` that never gets resolved into a real local named component
+shows up differently to `findCreate`'s own `$ref`-identity check than
+it would once bundled, pushing genuine same-schema create/read pairs
+into the wrong matching branch or missing them outright.
+
+**Confirmed live, UBI-222, at real cost**: a cross-provider exposure
+check for the `findCreate` inline-envelope/path-relationship bugs used
+`Load(liveURL)` alone against Azure's real specs (both the sampled and
+the later exhaustive 302-member sweep) and reported 16 affected members
+(53 resources) with wrong or falsely-creatable bindings. A real
+`ubx-provider-dynamic` release was cut and an `ubx-schema-azure`
+regeneration PR opened on the strength of that finding before it was
+double-checked. Re-running the exact same 302-member comparison the
+correct way -- reloading each member's own already-committed, already-
+bundled `raw_spec` via `openapi.Parse(rawSpec, nil)` (the identical
+real code path `internal/snapshot/generate.go` itself uses to reload a
+frozen member, confirmed by reading that file directly rather than
+assumed) instead of re-fetching and `Load`-ing the live URL -- found
+**zero** real differences across all 302 members. Every one of the 16
+originally-flagged members turned out to be a real, legitimate
+`$ref`-identity match (the SAME named schema shared by a read and its
+own real create, exactly the primary, strongest signal `findCreate`
+already trusts, untouched by either of the two path-relationship/
+envelope fixes) that the unbundled probe's own broken `$ref` resolution
+had scrambled into looking like a false positive.
+
+**The real check for any provider whose spec references other files**:
+either call `openapi.Load` immediately followed by `openapi.Bundle(doc)`
+(matching `generate.go`'s own real two-step sequence exactly), or --
+simpler and less error-prone -- reload an already-committed member's
+own `raw_spec` field via `openapi.Parse(rawSpec, nil)`, since that
+content was already bundled once at generation time and needs no
+second pass. A provider whose real spec is a single self-contained file
+with no external refs (Cloudflare's own real case, confirmed this same
+session -- "no redocly_bundle needed") is not exposed to this trap, but
+nothing about a scratch tool's own output tells you which kind of
+provider you're looking at, so treat this as required for any
+multi-file spec, not just Azure's.
