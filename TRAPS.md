@@ -420,3 +420,23 @@ session -- "no redocly_bundle needed") is not exposed to this trap, but
 nothing about a scratch tool's own output tells you which kind of
 provider you're looking at, so treat this as required for any
 multi-file spec, not just Azure's.
+
+## A commit message is a claim, not evidence
+
+A commit message on `ubx-docs-providers` said content width was
+"unified to max-w-7xl everywhere," describing a Material restyle pass.
+Its own diff never touched `ResourceDetailView.tsx` -- the one
+component that renders every resource and data-source detail page, the
+large majority of the site's own pages. That file stayed at
+`max-w-6xl` through every commit since, a real 128px mismatch against
+the provider home page, `Header`, and the landing page, all of which
+really were unified in that same commit. Nobody caught it because the
+message was believed rather than checked -- "everywhere" read as a
+completed claim, not a scope to verify against the diff that supposedly
+made it true. Same class of failure as trusting `gh pr view`'s own
+merged flag, or a prior session's own "published" claim, both above:
+a commit message describes what its author believed they did, not
+what the diff actually contains. Before trusting "everywhere" / "all" /
+"unified" / "fixed" language in any commit message, run `git show
+<sha> -- <path>` against the specific file the claim depends on, not
+just the summary paragraph at the top.
