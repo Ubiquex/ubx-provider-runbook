@@ -120,6 +120,25 @@ After each batch:
    reads (UBI-240) -- a batch that updates `descriptions.json` without
    also refreshing this file leaves the real, checked-in codegen
    corpus stale until the next session happens to notice.
+
+   **Any manual `ubx sdk gen` invocation must pass this same
+   `--descriptions-dir` flag, pointed at this checkout's own
+   `artifacts/$ARGUMENTS/`.** Confirmed live, UBI-249: a full session
+   of hand regenerations across seven providers omitted the flag every
+   time, so real, individually-authored description text kept serving
+   the docs site correctly (it reads `descriptions.json` directly) while
+   staying entirely absent from the generated `.go`/`.ts`/`.py` code
+   comments -- the exact corpus this runbook exists to write, silently
+   never reaching the SDK it was written for. This is the same class of
+   gap as `PROVENANCE.json` never being copied during a manual
+   regeneration (see `hash-watch.yml`'s own `cp .../PROVENANCE.json`
+   step): both come from working outside the automated path, which
+   passes both correctly and a hand regeneration has to reproduce by
+   hand. Before treating any manual regeneration as complete, confirm
+   the flag was actually passed -- do not assume it from a clean build
+   alone, since a build with the flag omitted also succeeds cleanly and
+   looks identical until someone diffs the generated comments against
+   `descriptions.json`.
 3. Commit both files together, with the real running total in the
    message (`artifacts/$ARGUMENTS: intros batch N -- X/Y wires`).
 4. Update the manifest's own `hops` entry for this runbook's single
