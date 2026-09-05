@@ -440,3 +440,83 @@ what the diff actually contains. Before trusting "everywhere" / "all" /
 "unified" / "fixed" language in any commit message, run `git show
 <sha> -- <path>` against the specific file the claim depends on, not
 just the summary paragraph at the top.
+
+## A branch pushed by a workflow never fires `pull_request`, so its own bump PR blocks forever
+
+Same visible symptom as "A required check with zero possible runs
+blocks a PR forever" above, different cause and different fix, so
+check both when a PR sits unmergeable with an empty check list.
+
+There, the workflow file did not exist. Here it exists and is
+perfectly healthy, but nothing ever triggered it: GitHub deliberately
+does not fire `push` or `pull_request` events for anything pushed
+using the automatic `GITHUB_TOKEN`, to stop workflows recursively
+triggering themselves. So when `publish.yml` bumps a version, pushes
+its own branch, and opens its own PR, that PR is born with zero check
+runs and stays that way. Branch protection requiring any status
+context then blocks it permanently. Nothing retries, nothing expires,
+and the PR looks exactly like one whose CI failed.
+
+**Confirmed live, UBI-249 follow-on**: `ubx-sdk-aws#38` (`sdk: bump to
+v2.2.1`, three version strings, no content) sat open and `BLOCKED`
+with `no checks reported on the branch` while its two required
+contexts, `stale-base-check` and `build-test`, had never run once. The
+published registry version was 2.2.1 while the repo's own committed
+version was still 2.2.0 -- the only provider of eight where published
+was AHEAD of committed, which is the real tell that a self-opened bump
+PR has been stranded.
+
+**The fix is to close and reopen the PR.** That fires a real
+`reopened` event under your own identity, which is not
+`GITHUB_TOKEN`-suppressed, and every `pull_request`-triggered workflow
+then runs normally against unchanged content. Both checks passed
+within about a minute and the PR merged. An empty commit pushed by a
+human works too, but reopening is preferable because it changes
+nothing at all -- no new SHA, no altered diff, nothing for a reviewer
+to re-check.
+
+**How to notice it without being told**: compare each SDK repo's own
+committed version against its published version. Committed one patch
+AHEAD of published is the normal, expected state after a merged fix
+awaiting a publish. Published ahead of committed is not normal and
+means a bump PR never landed.
+
+## Nothing verifies that a pin still matches its schema repo's latest release
+
+`ubiquex`'s own `sdk/providers/.ubx/config` pins each provider to an
+exact `ubx-schema-<provider>` version. Nothing anywhere checks that
+the pinned version is still that repo's current release. Not
+`hash-watch.yml` (it watches the upstream vendor spec, not our own
+published snapshot), not `translator-watch.yml` (it watches
+`ubx-provider-dynamic`'s own tag), not CI. A pin can sit a full major
+version behind indefinitely and every check in the org stays green.
+
+**Confirmed live, UBI-249 follow-on**: `ubx-schema-azure` released
+v2.0.0 on 2026-08-31; `ubiquex` still pinned `1.0.1` days later. Found
+only by auditing all eight pins against all eight repos' latest
+releases by hand. The other seven each matched exactly, so the audit
+is cheap and worth repeating -- it is eight API calls.
+
+**Two things this trap teaches beyond the bump itself.**
+
+First, a version number's own size is not evidence of impact, in
+either direction. The obvious reading of "pinned a major version
+behind" is that everything downstream is wrong. Regenerating against
+2.0.0 and diffing the full IR both ways found that across all 2,720
+wire types and 1,510,345 fields the ONLY difference was one
+description string gaining a sentence. v2.0.0 was a `schema_format`
+2 to 3 bump, not a change to the translated surface. A comparison
+report had already blamed this stale pin for Azure's poor showing;
+that claim was wrong and only checking the real diff showed it. Diff
+the output, never reason from the version number.
+
+Second, checking the pin against the latest RELEASE is necessary but
+not sufficient. A pin can only ever name a real release, since
+`provider.AcquireSchema` downloads a release asset and verifies it
+against `SHA256SUMS`. But the schema repo's own `main` can be ahead of
+its latest release: `ubx-schema-azure`'s committed `manifest.json`
+read `2.0.1` while its newest release was still `v2.0.0`, with a
+further open PR (`#17`) taking `main` to `2.1.0`. So there are three
+distinct versions to keep straight -- what is pinned, what is
+released, and what is committed -- and a pin that is correct against
+the latest release can still be two steps behind the real work.
