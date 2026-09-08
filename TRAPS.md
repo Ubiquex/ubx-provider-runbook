@@ -520,3 +520,31 @@ further open PR (`#17`) taking `main` to `2.1.0`. So there are three
 distinct versions to keep straight -- what is pinned, what is
 released, and what is committed -- and a pin that is correct against
 the latest release can still be two steps behind the real work.
+
+## A new repo can ship published with no PR check and no protection
+
+`ubx sdk init-repo` writes `publish.yml` and nothing else that runs in
+CI. It does not write `ci.yml`, `stale-base-check.yml` or
+`orphan-branch-watch.yml`, and it does not touch repository settings at
+all. So a repo created by following the SDK hop alone has no pull
+request check and no branch protection, while being published to npm,
+PyPI and the Go module proxy.
+
+`ubx-sdk-cloudflare`, the eighth and most recently onboarded provider,
+shipped exactly that way. Its seven siblings all had both. It was found
+by sweeping all 30 unarchived repos, not by anything failing, which is
+the point: nothing fails. A repo with no checks looks identical to a
+healthy one until someone merges something broken.
+
+The same sweep found `ubx-schema-cloudflare` had the workflows but no
+protection, so the schema hop had half the gap.
+
+Both hops now set protection explicitly, and the SDK hop vendors the
+three missing workflows. Two things to keep in mind if you change that:
+
+- **Order matters.** Push the workflows and let them report once BEFORE
+  requiring them. A required context that has never reported blocks
+  every PR forever with nothing to click.
+- **Do not require a check that does not exist.** `ubiquex-internals`
+  has only scheduled watch workflows, so it is protected with no
+  required contexts rather than a required one that can never run.

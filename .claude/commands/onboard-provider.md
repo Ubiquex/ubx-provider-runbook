@@ -286,6 +286,32 @@ remote confirms the push landed** -- see
 existing with local commits ready to push is not the same as the push
 having succeeded.
 
+**Set branch protection as part of creating the repo, not afterwards.**
+Every other schema repo has it and `ubx-schema-cloudflare` did not,
+because nothing in this runbook said to. Run this once the workflows are
+pushed and `ci.yml` has reported at least once, so the required contexts
+already exist:
+
+```
+gh api -X PUT repos/Ubiquex/ubx-schema-$ARGUMENTS/branches/main/protection \
+  --input - <<'JSON'
+{
+  "required_status_checks": { "strict": false,
+    "contexts": ["stale-base-check", "validate-snapshot"] },
+  "enforce_admins": true,
+  "required_pull_request_reviews": { "required_approving_review_count": 0 },
+  "restrictions": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}
+JSON
+```
+
+Order matters. A required context that has never reported blocks every
+PR forever with nothing to click, which is the "required check with zero
+possible runs" trap. Push the workflows first, let them run once, then
+protect.
+
 ## Hop 5: cut the schema release, switch the pin
 
 Once hop 4's push has genuinely landed (verified per above): cut a real
@@ -353,6 +379,50 @@ than left as a checklist a future session could miss the same way:
   generated step hand-adjusted afterward to a live `schema_source`/
   `schema_url` shape -- see `ubx-sdk-kubernetes`'s own `publish.yml`
   for that real, working shape.
+- **Three CI workflows this command does NOT write either, and every
+  sibling SDK repo has: `ci.yml`, `stale-base-check.yml` and
+  `orphan-branch-watch.yml`.** `ubx sdk init-repo` writes only
+  `publish.yml`, which does not run on a pull request, so a repo built
+  from this runbook alone has NO pull request check at all. That is
+  exactly how `ubx-sdk-cloudflare` shipped as a published npm, PyPI and
+  Go module with nothing gating `main`, found by a sweep rather than by
+  anything failing.
+
+  Copy all three verbatim from any existing SDK repo. Confirmed fully
+  generic across all eight, no provider-specific content:
+
+  ```
+  for f in ci.yml stale-base-check.yml orphan-branch-watch.yml; do
+    gh api repos/Ubiquex/ubx-sdk-datadog/contents/.github/workflows/$f \
+      -q .content | base64 -d > .github/workflows/$f
+  done
+  ```
+
+- **Set branch protection as part of creating the repo, not afterwards.**
+  Push the workflows first and let them report once, so the required
+  contexts already exist. A required context that has never reported
+  blocks every PR forever with nothing to click.
+
+  ```
+  gh api -X PUT repos/Ubiquex/ubx-sdk-$ARGUMENTS/branches/main/protection \
+    --input - <<'JSON'
+  {
+    "required_status_checks": { "strict": false,
+      "contexts": ["stale-base-check", "build-test"] },
+    "enforce_admins": true,
+    "required_pull_request_reviews": { "required_approving_review_count": 0 },
+    "restrictions": null,
+    "allow_force_pushes": false,
+    "allow_deletions": false
+  }
+  JSON
+  ```
+
+  **The ninth provider should land with both already on.** Neither is a
+  follow-up or a cleanup pass. A published package that anything can
+  reach `main` in is the thing this step exists to prevent, and it only
+  prevents it if it happens at creation.
+
 - **`.github/workflows/hash-watch.yml` is the one file this command
   deliberately does NOT write** -- it needs real, provider-specific
   content (which upstream URL to poll, how to hash it) that differs
