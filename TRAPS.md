@@ -78,23 +78,32 @@ the shape mechanically:
   anything younger than two days and would have taken up to nine days
   to notice #116.
 
-**`stale-base-check` is not the same check and does not cover this.**
-It is already required in 20 repos across this org and it is a real
-guard, but it triggers on `pull_request` `opened`/`synchronize`/
-`reopened`, so it evaluates when a PR is pushed and never at the moment
-the merge button is clicked, which its own header comment names as "the
-one moment (clicking merge) the trap actually fires". A PR opened while
-its base was healthy stays green through the base merging out from
-under it. That is exactly what happened to `ubiquex#116`. The
-base-is-main question does not depend on when it is asked, which is the
-whole reason to prefer it.
+**`stale-base-check` was the previous answer here, and it is gone
+(2026-09-09).** It was required in 21 repos across this org and it was a
+real guard, built for this exact trap under UBI-222. It could not catch
+it. It triggered on `pull_request` `opened`/`synchronize`/`reopened`, so
+it evaluated when a PR was pushed and never at the moment the merge
+button is clicked, which its own header comment named as "the one
+moment (clicking merge) the trap actually fires". A PR opened while its
+base was healthy stayed green through the base merging out from under
+it, which is exactly how `ubiquex#116` merged.
 
-The two are not redundant, but base-is-main subsumes stale-base-check:
-if every base must be `main`, a stale base cannot exist. Retiring
-`stale-base-check` once base-is-main is required everywhere is worth
-considering, though dropping a required status check is a
-branch-protection change and should be a deliberate decision rather
-than a side effect.
+base-is-main has no such timing dependency: the base is `main` or it is
+not, and the question gives the same answer whenever it is asked. It
+also subsumes the old check outright, since if every base must be
+`main` a stale base cannot exist, so `stale-base-check` was dropped from
+every repo's required contexts and its workflow file deleted. Leaving a
+workflow that runs on every PR and always passes would have read as
+coverage for a trap it was no longer contributing anything to.
+
+**Both checks share one residual blind spot**, worth knowing rather than
+assuming closed: every repo's `pull_request:` trigger has no `types:`
+filter, so it uses the default three, and none of them subscribe to
+`edited`, which is the event a base change fires. A PR opened against
+`main`, passing, and then retargeted to a feature branch keeps its stale
+green. That takes a deliberate retarget away from `main` rather than
+the accidental shape that caused `#99` and `#116`, and the old check was
+blind to the same event, so nothing was lost by removing it.
 
 `ubiquex` and 26 other repos now carry base-is-main (one PR each, all
 opened 2026-09-09). Two are not covered: `ubiquex-internals`, which has
@@ -378,7 +387,18 @@ parse.
 
 Branch protection required a `stale-base-check` status context on six
 real repos whose own workflow file producing that check did not exist
-yet -- a real, permanent block, not a slow CI run or a flaky one. From
+yet -- a real, permanent block, not a slow CI run or a flaky one.
+(`stale-base-check` itself was retired org-wide on 2026-09-09; it is
+named here because it is what the incident was about, not because the
+check still exists.)
+
+**This trap has an ordering, and retiring a check can walk straight into
+it.** Removing a required check means dropping the context from branch
+protection FIRST, then deleting the workflow. Do it the other way round
+and every open PR in that repo is instantly blocked forever on a context
+nothing can produce, which is this exact failure with the cause hidden
+one step further back. The 2026-09-09 `stale-base-check` retirement went
+contexts-first across all 21 repos for this reason. From
 outside the repo, a PR sitting unmergeable with an empty check list is
 indistinguishable from a real failure until the branch protection
 rules and the actual workflow files are checked directly against each
@@ -584,9 +604,11 @@ the latest release can still be two steps behind the real work.
 ## A new repo can ship published with no PR check and no protection
 
 `ubx sdk init-repo` writes `publish.yml` and nothing else that runs in
-CI. It does not write `ci.yml`, `stale-base-check.yml` or
-`orphan-branch-watch.yml`, and it does not touch repository settings at
-all. So a repo created by following the SDK hop alone has no pull
+CI. It does not write `ci.yml` or `orphan-branch-watch.yml`, and it does
+not touch repository settings at all. (It never wrote
+`stale-base-check.yml` either; that workflow was retired org-wide on
+2026-09-09 in favour of the base-is-main step inside `ci.yml`, which a
+repo created this way therefore also does not get.) So a repo created by following the SDK hop alone has no pull
 request check and no branch protection, while being published to npm,
 PyPI and the Go module proxy.
 
