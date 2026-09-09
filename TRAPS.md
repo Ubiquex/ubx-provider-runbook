@@ -49,6 +49,66 @@ gh pr list --head <branch> --state all --json number,state
 An empty result or a `MERGED`/`CLOSED` state means stop -- start a new
 branch from current `main` instead of pushing here.
 
+**A stacked PR can also merge into its own dead base, seconds after the
+base lands.** This is a different shape from pushing to a merged branch,
+and the check above does not catch it: the dependent PR is open and
+valid the whole time. GitHub retargets a dependent PR's base when the
+base merges, but only if it gets there first. In `ubiquex` it twice did
+not. #99 merged into an already-merged base and was recovered by #100.
+#116 repeated it exactly, merging nine seconds after #115 landed, and
+was recovered by #117. Both showed `MERGED`. Neither had its content on
+`main`. Nine seconds is not a window discipline can occupy.
+
+**This entry is why the trap is now enforced rather than written down.**
+Everything above was already here, with a prescribed command, before
+#116 happened. The author of #116 also wrote the ancestry check into the
+PR body as a commitment to run it afterwards, and stacked anyway. Three
+written intentions, one recurrence. As of 2026-09-09 `ubiquex` refuses
+the shape mechanically:
+
+- `ci.yml`'s first step fails any PR whose base is not `main`. It sits
+  inside `build-test`, the job branch protection already requires, so a
+  stacked PR cannot merge rather than merely being discouraged.
+- `orphan-branch-watch.yml` gained a `recent-merge-check` job on every
+  push to `main`: for each PR merged in the last three hours, is its
+  merge commit reachable from `main`? A finding opens an issue naming
+  the lost content. This is the backstop for every other route to the
+  same outcome, including the push-to-a-merged-branch shape above, and
+  is deliberately separate from the weekly orphan walk, which ignores
+  anything younger than two days and would have taken up to nine days
+  to notice #116.
+
+**`stale-base-check` is not the same check and does not cover this.**
+It is already required in 20 repos across this org and it is a real
+guard, but it triggers on `pull_request` `opened`/`synchronize`/
+`reopened`, so it evaluates when a PR is pushed and never at the moment
+the merge button is clicked, which its own header comment names as "the
+one moment (clicking merge) the trap actually fires". A PR opened while
+its base was healthy stays green through the base merging out from
+under it. That is exactly what happened to `ubiquex#116`. The
+base-is-main question does not depend on when it is asked, which is the
+whole reason to prefer it.
+
+The two are not redundant, but base-is-main subsumes stale-base-check:
+if every base must be `main`, a stale base cannot exist. Retiring
+`stale-base-check` once base-is-main is required everywhere is worth
+considering, though dropping a required status check is a
+branch-protection change and should be a deliberate decision rather
+than a side effect.
+
+`ubiquex` and 26 other repos now carry base-is-main (one PR each, all
+opened 2026-09-09). Two are not covered: `ubiquex-internals`, which has
+branch protection but no required status checks at all, so nothing
+there can be enforcing without a settings change; and
+`ubx-providers-check-demo`, a private demo repo with no branch
+protection available. The `recent-merge-check` half exists only in
+`ubiquex`.
+
+**Recovering a lost merge**: open a PR from the *base* branch to `main`,
+so the diff is exactly the content that never landed. Do not re-merge
+the original PR and do not cherry-pick blind. That is what #100 and #117
+both did.
+
 ## Run git status before claiming work is committed
 
 A full batch sat uncommitted while its own summary said it shipped.
