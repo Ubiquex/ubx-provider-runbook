@@ -49,6 +49,43 @@ gh pr list --head <branch> --state all --json number,state
 An empty result or a `MERGED`/`CLOSED` state means stop -- start a new
 branch from current `main` instead of pushing here.
 
+**A stacked PR can also merge into its own dead base, seconds after the
+base lands.** This is a different shape from pushing to a merged branch,
+and the check above does not catch it: the dependent PR is open and
+valid the whole time. GitHub retargets a dependent PR's base when the
+base merges, but only if it gets there first. In `ubiquex` it twice did
+not. #99 merged into an already-merged base and was recovered by #100.
+#116 repeated it exactly, merging nine seconds after #115 landed, and
+was recovered by #117. Both showed `MERGED`. Neither had its content on
+`main`. Nine seconds is not a window discipline can occupy.
+
+**This entry is why the trap is now enforced rather than written down.**
+Everything above was already here, with a prescribed command, before
+#116 happened. The author of #116 also wrote the ancestry check into the
+PR body as a commitment to run it afterwards, and stacked anyway. Three
+written intentions, one recurrence. As of 2026-09-09 `ubiquex` refuses
+the shape mechanically:
+
+- `ci.yml`'s first step fails any PR whose base is not `main`. It sits
+  inside `build-test`, the job branch protection already requires, so a
+  stacked PR cannot merge rather than merely being discouraged.
+- `orphan-branch-watch.yml` gained a `recent-merge-check` job on every
+  push to `main`: for each PR merged in the last three hours, is its
+  merge commit reachable from `main`? A finding opens an issue naming
+  the lost content. This is the backstop for every other route to the
+  same outcome, including the push-to-a-merged-branch shape above, and
+  is deliberately separate from the weekly orphan walk, which ignores
+  anything younger than two days and would have taken up to nine days
+  to notice #116.
+
+Neither exists in the other repos yet. Until they do, this entry is
+still only a note here.
+
+**Recovering a lost merge**: open a PR from the *base* branch to `main`,
+so the diff is exactly the content that never landed. Do not re-merge
+the original PR and do not cherry-pick blind. That is what #100 and #117
+both did.
+
 ## Run git status before claiming work is committed
 
 A full batch sat uncommitted while its own summary said it shipped.
