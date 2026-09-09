@@ -78,8 +78,31 @@ the shape mechanically:
   anything younger than two days and would have taken up to nine days
   to notice #116.
 
-Neither exists in the other repos yet. Until they do, this entry is
-still only a note here.
+**`stale-base-check` is not the same check and does not cover this.**
+It is already required in 20 repos across this org and it is a real
+guard, but it triggers on `pull_request` `opened`/`synchronize`/
+`reopened`, so it evaluates when a PR is pushed and never at the moment
+the merge button is clicked, which its own header comment names as "the
+one moment (clicking merge) the trap actually fires". A PR opened while
+its base was healthy stays green through the base merging out from
+under it. That is exactly what happened to `ubiquex#116`. The
+base-is-main question does not depend on when it is asked, which is the
+whole reason to prefer it.
+
+The two are not redundant, but base-is-main subsumes stale-base-check:
+if every base must be `main`, a stale base cannot exist. Retiring
+`stale-base-check` once base-is-main is required everywhere is worth
+considering, though dropping a required status check is a
+branch-protection change and should be a deliberate decision rather
+than a side effect.
+
+`ubiquex` and 26 other repos now carry base-is-main (one PR each, all
+opened 2026-09-09). Two are not covered: `ubiquex-internals`, which has
+branch protection but no required status checks at all, so nothing
+there can be enforcing without a settings change; and
+`ubx-providers-check-demo`, a private demo repo with no branch
+protection available. The `recent-merge-check` half exists only in
+`ubiquex`.
 
 **Recovering a lost merge**: open a PR from the *base* branch to `main`,
 so the diff is exactly the content that never landed. Do not re-merge
